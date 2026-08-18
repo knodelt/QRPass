@@ -1,5 +1,13 @@
-const CACHE = 'qrpass-shell-v0.2';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
+const CACHE = 'qrpass-shell-v0.3';
+const ASSETS = [
+  './',
+  './index.html',
+  './styles.css',
+  './company.css',
+  './company.js',
+  './app.js',
+  './manifest.json'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
