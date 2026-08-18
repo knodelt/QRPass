@@ -1,0 +1,50 @@
+.qrpass-footer{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  max-width:1240px;
+  margin:0 auto;
+  padding:0 16px 24px;
+  color:var(--muted,#686860);
+  font-size:10px;
+}
+.qrpass-footer button,.auth-legal-links button{
+  border:0;
+  background:transparent;
+  padding:0;
+  color:inherit;
+  font:inherit;
+  font-weight:800;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+.qrpass-footer .footer-sep,.auth-legal-links .footer-sep{opacity:.5}
+.auth-legal-links{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  margin-top:14px;
+  color:#6b6a64;
+  font-size:10px;
+}
+.qrpass-session-note{
+  position:fixed;
+  left:50%;
+  bottom:max(12px,env(safe-area-inset-bottom));
+  z-index:1100;
+  transform:translateX(-50%);
+  width:min(420px,calc(100% - 24px));
+  border-left:5px solid var(--signal,#f0c400);
+  padding:10px 12px;
+  background:#111;
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+}
+@media(max-width:760px){
+  .qrpass-footer{padding-bottom:max(18px,env(safe-area-inset-bottom))}
+}
