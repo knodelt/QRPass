@@ -67,7 +67,7 @@ async function deleteHistoryEntry(env, actor, machineId, entryId) {
   `).bind(entryId, machineId, actor.tenantId).first();
 
   if (!entry) return json({ error: 'Verlaufseintrag nicht gefunden.' }, 404);
-  if (!['fault', 'maintenance'].includes(entry.type)) {
+  if (!['fault', 'maintenance', 'note'].includes(entry.type)) {
     return json({ error: 'Dieser Verlaufseintrag kann hier nicht gelöscht werden.' }, 409);
   }
 
@@ -91,8 +91,8 @@ async function deleteHistoryEntry(env, actor, machineId, entryId) {
   } else {
     await env.DB.prepare(`
       DELETE FROM entries
-      WHERE id = ? AND machine_id = ? AND tenant_id = ? AND type = 'fault'
-    `).bind(entryId, machineId, actor.tenantId).run();
+      WHERE id = ? AND machine_id = ? AND tenant_id = ? AND type = ?
+    `).bind(entryId, machineId, actor.tenantId, entry.type).run();
   }
 
   return json({ ok: true, deletedType: entry.type });
