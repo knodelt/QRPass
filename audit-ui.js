@@ -27,7 +27,13 @@
     target.append(meta);
   }
 
+  function cleanMaintenanceForm() {
+    const person = document.querySelector('#maintenance-form [name="person"]');
+    person?.closest('.field')?.remove();
+  }
+
   function enhanceHistory() {
+    cleanMaintenanceForm();
     if (typeof currentMachineId !== 'function' || typeof getMachine !== 'function') return;
     const id = currentMachineId();
     if (!id) return;
