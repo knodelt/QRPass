@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#171816">
-  <meta name="description" content="QRPass – digitales Maschinenbuch per QR-Code.">
-  <title>QRPass – Maschinenbuch</title>
+  <meta name="description" content="QRPass – digitales Betriebsmittelbuch per QR-Code.">
+  <title>QRPass – Betriebsmittelbuch</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="company.css">
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="account.css">
   <link rel="stylesheet" href="pilot.css">
   <link rel="stylesheet" href="legal.css">
+  <link rel="stylesheet" href="inspections.css">
   <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script defer src="legal-config.js"></script>
   <script defer src="pilot.js"></script>
@@ -31,6 +32,7 @@
   <script defer src="app.js"></script>
   <script defer src="audit-ui.js"></script>
   <script defer src="archive-ui.js"></script>
+  <script defer src="inspections.js"></script>
   <script defer src="history-admin.js"></script>
   <script defer src="account.js"></script>
   <script defer src="legal.js"></script>
@@ -39,10 +41,10 @@
   <header class="topbar">
     <button class="brand" data-action="home" aria-label="Zur Übersicht">
       <span class="brand-mark">QR</span>
-      <span><strong>QRPass</strong><small>Maschinenbuch</small></span>
+      <span><strong>QRPass</strong><small>Betriebsmittelbuch</small></span>
     </button>
     <div class="top-actions">
-      <button class="button button-primary" data-action="add-machine">+ Maschine</button>
+      <button class="button button-primary" data-action="add-machine">+ Betriebsmittel</button>
     </div>
   </header>
 
