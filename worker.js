@@ -2,7 +2,6 @@ let schemaPromise;
 
 const SESSION_COOKIE = 'qrpass_session';
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 150000;
 
 const DEFAULT_COMPANY = {
   companyName: '',
@@ -62,6 +61,11 @@ function validEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function validPasswordMaterial(value, min = 20, max = 200) {
+  const text = cleanText(value, max);
+  return text.length >= min && /^[-_A-Za-z0-9]+$/.test(text) ? text : '';
+}
+
 function parseCookies(request) {
   const header = request.headers.get('cookie') || '';
   const result = {};
@@ -81,13 +85,6 @@ function bytesToBase64Url(bytes) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function base64UrlToBytes(value) {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
-  const binary = atob(padded);
-  return Uint8Array.from(binary, char => char.charCodeAt(0));
-}
-
 function randomToken(size = 32) {
   const bytes = new Uint8Array(size);
   crypto.getRandomValues(bytes);
@@ -97,27 +94,6 @@ function randomToken(size = 32) {
 async function sha256(value) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return bytesToBase64Url(new Uint8Array(digest));
-}
-
-async function passwordHash(password, saltText) {
-  const material = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      hash: 'SHA-256',
-      salt: base64UrlToBytes(saltText),
-      iterations: PASSWORD_ITERATIONS
-    },
-    material,
-    256
-  );
-  return bytesToBase64Url(new Uint8Array(bits));
 }
 
 function constantEqual(a, b) {
@@ -311,18 +287,25 @@ async function getSession(request, env) {
   };
 }
 
+async function getPasswordSalt(env, email) {
+  const normalized = normalizeEmail(email);
+  if (!validEmail(normalized)) return randomToken(16);
+  const row = await env.DB.prepare('SELECT password_salt FROM users WHERE email = ?').bind(normalized).first();
+  return row?.password_salt || randomToken(16);
+}
+
 async function register(request, env) {
   const body = await readJson(request);
   if (!body) return json({ error: 'Ungültige Daten.' }, 400);
 
   const companyName = cleanText(body.companyName, 180);
   const email = normalizeEmail(body.email);
-  const password = String(body.password || '');
+  const salt = validPasswordMaterial(body.passwordSalt, 20, 100);
+  const verifier = validPasswordMaterial(body.passwordVerifier, 32, 120);
 
   if (!companyName) return json({ error: 'Firmenname fehlt.' }, 400);
   if (!validEmail(email)) return json({ error: 'Bitte eine gültige E-Mail-Adresse eingeben.' }, 400);
-  if (password.length < 8) return json({ error: 'Das Passwort muss mindestens 8 Zeichen lang sein.' }, 400);
-  if (password.length > 200) return json({ error: 'Das Passwort ist zu lang.' }, 400);
+  if (!salt || !verifier) return json({ error: 'Passwort konnte nicht sicher verarbeitet werden.' }, 400);
 
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) return json({ error: 'Für diese E-Mail-Adresse gibt es bereits ein Konto.' }, 409);
@@ -332,47 +315,32 @@ async function register(request, env) {
   const tenantId = `tenant_${crypto.randomUUID()}`;
   const userId = `user_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
-  const salt = randomToken(16);
-  const hash = await passwordHash(password, salt);
 
-  try {
-    await env.DB.batch([
-      env.DB.prepare('INSERT INTO tenants (id, created_at) VALUES (?, ?)').bind(tenantId, now),
-      env.DB.prepare(`
-        INSERT INTO users (id, tenant_id, email, password_hash, password_salt, role, created_at)
-        VALUES (?, ?, ?, ?, ?, 'admin', ?)
-      `).bind(userId, tenantId, email, hash, salt, now)
-    ]);
-  } catch (error) {
-    const duplicate = String(error?.message || '').toLowerCase().includes('unique');
-    return json({ error: duplicate ? 'Für diese E-Mail-Adresse gibt es bereits ein Konto.' : 'Konto konnte nicht erstellt werden.' }, duplicate ? 409 : 500);
-  }
+  const statements = [
+    env.DB.prepare('INSERT INTO tenants (id, created_at) VALUES (?, ?)').bind(tenantId, now),
+    env.DB.prepare(`
+      INSERT INTO users (id, tenant_id, email, password_hash, password_salt, role, created_at)
+      VALUES (?, ?, ?, ?, ?, 'admin', ?)
+    `).bind(userId, tenantId, email, verifier, salt, now)
+  ];
 
   if (isFirstUser) {
-    await env.DB.batch([
+    statements.push(
       env.DB.prepare("UPDATE machines SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId),
       env.DB.prepare("UPDATE entries SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId),
       env.DB.prepare("UPDATE company_settings SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId)
-    ]);
+    );
   }
 
-  const existingSettings = await env.DB.prepare(
-    'SELECT tenant_id, company_name FROM company_settings WHERE tenant_id = ?'
-  ).bind(tenantId).first();
-
-  if (existingSettings) {
-    await env.DB.prepare(`
-      UPDATE company_settings
-      SET company_name = CASE WHEN company_name = '' THEN ? ELSE company_name END,
-          updated_at = ?
-      WHERE tenant_id = ?
-    `).bind(companyName, now, tenantId).run();
-  } else {
-    await env.DB.prepare(`
+  statements.push(
+    env.DB.prepare(`
       INSERT INTO company_settings (
         tenant_id, company_name, logo_data_url, header_color,
         accent_color, background_color, setup_completed, updated_at
       ) VALUES (?, ?, NULL, ?, ?, ?, 0, ?)
+      ON CONFLICT(tenant_id) DO UPDATE SET
+        company_name = CASE WHEN company_name = '' THEN excluded.company_name ELSE company_name END,
+        updated_at = excluded.updated_at
     `).bind(
       tenantId,
       companyName,
@@ -380,7 +348,15 @@ async function register(request, env) {
       DEFAULT_COMPANY.accentColor,
       DEFAULT_COMPANY.backgroundColor,
       now
-    ).run();
+    )
+  );
+
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    const message = String(error?.message || '').toLowerCase();
+    const duplicate = message.includes('unique') || message.includes('constraint');
+    return json({ error: duplicate ? 'Für diese E-Mail-Adresse gibt es bereits ein Konto.' : 'Konto konnte nicht erstellt werden.' }, duplicate ? 409 : 500);
   }
 
   const token = await createSession(env, userId, tenantId);
@@ -396,19 +372,16 @@ async function login(request, env) {
   if (!body) return json({ error: 'Ungültige Daten.' }, 400);
 
   const email = normalizeEmail(body.email);
-  const password = String(body.password || '');
-  if (!validEmail(email) || !password) return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
+  const verifier = validPasswordMaterial(body.passwordVerifier, 32, 120);
+  if (!validEmail(email) || !verifier) return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
 
   const user = await env.DB.prepare(`
-    SELECT id, tenant_id, email, password_hash, password_salt, role
+    SELECT id, tenant_id, email, password_hash, role
     FROM users
     WHERE email = ?
   `).bind(email).first();
 
-  if (!user) return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
-
-  const candidate = await passwordHash(password, user.password_salt);
-  if (!constantEqual(candidate, user.password_hash)) {
+  if (!user || !constantEqual(verifier, user.password_hash)) {
     return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
   }
 
@@ -651,6 +624,9 @@ async function resolveEntry(env, tenantId, machineId, entryId) {
 async function handleApi(request, env, url) {
   await ensureSchema(env);
 
+  if (request.method === 'GET' && url.pathname === '/api/auth/salt') {
+    return json({ salt: await getPasswordSalt(env, url.searchParams.get('email') || '') });
+  }
   if (request.method === 'POST' && url.pathname === '/api/auth/register') return register(request, env);
   if (request.method === 'POST' && url.pathname === '/api/auth/login') return login(request, env);
   if (request.method === 'POST' && url.pathname === '/api/auth/logout') return logout(request, env);
