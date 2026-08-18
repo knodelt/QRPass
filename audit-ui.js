@@ -16,6 +16,7 @@
   function actionLabel(entry) {
     if (entry.type === 'fault') return 'Gemeldet von';
     if (entry.type === 'maintenance') return 'Eingetragen von';
+    if (entry.type === 'inspection') return 'Prüfung eingetragen von';
     return 'Erstellt von';
   }
 
