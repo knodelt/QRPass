@@ -486,12 +486,21 @@
   }
 
   let scheduled = false;
+  let observer = null;
+  function watch() {
+    observer?.observe(document.body, { childList: true, subtree: true });
+  }
   function scheduleEnhance() {
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      enhanceGlobal();
+      observer?.disconnect();
+      try {
+        enhanceGlobal();
+      } finally {
+        watch();
+      }
     });
   }
 
@@ -506,7 +515,7 @@
 
   document.addEventListener('qrpass:auth', scheduleEnhance);
   window.addEventListener('hashchange', scheduleEnhance);
-  const observer = new MutationObserver(scheduleEnhance);
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer = new MutationObserver(scheduleEnhance);
+  watch();
   setTimeout(scheduleEnhance, 250);
 })();
