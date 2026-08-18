@@ -1,7 +1,7 @@
 {
-  "name": "QRPass – Maschinenbuch",
+  "name": "QRPass – Betriebsmittelbuch",
   "short_name": "QRPass",
-  "description": "Das einfache digitale Maschinenbuch per QR-Code.",
+  "description": "Das einfache digitale Betriebsmittelbuch per QR-Code für Maschinen, Leitern, Stapler, Kräne und weitere Arbeitsmittel.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
