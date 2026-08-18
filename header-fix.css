@@ -1,0 +1,30 @@
+.brand-mark{display:none!important}
+.topbar{min-height:58px;align-items:center}
+.brand{flex:1;min-width:0;max-width:none!important;align-items:center!important;padding-left:16px!important;overflow:hidden}
+.company-logo-slot{display:grid;place-items:center;min-width:0!important;max-width:140px!important;padding:5px 0!important;margin-right:12px}
+.company-logo-slot img{display:block;max-width:120px!important;max-height:36px!important;width:auto;height:auto;object-fit:contain}
+.company-brand-copy{min-width:0;padding:0!important}
+.company-brand-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px!important}
+.company-brand-copy small{font-size:8px!important}
+.top-actions{display:flex;align-items:center;gap:7px;padding:0 12px!important;flex-shrink:0}
+.company-settings-button{margin:0!important}
+
+@media(max-width:760px){
+  .topbar{position:relative!important;top:auto!important;min-height:54px}
+  .brand{padding-left:11px!important;margin-right:6px}
+  .company-logo-slot{max-width:82px!important;margin-right:8px;padding:4px 0!important}
+  .company-logo-slot img{max-width:76px!important;max-height:32px!important}
+  .company-brand-copy strong{font-size:13px!important}
+  .company-brand-copy small{display:none}
+  .top-actions{gap:5px;padding:0 7px!important}
+  .top-actions .button{padding:8px 9px!important;font-size:11px!important;white-space:nowrap}
+  .company-settings-button{padding:8px!important}
+  .app-shell{padding-top:22px!important}
+}
+
+@media(max-width:390px){
+  .company-brand-copy strong{font-size:12px!important}
+  .top-actions .button{padding:7px 8px!important;font-size:10px!important}
+  .company-logo-slot{max-width:66px!important}
+  .company-logo-slot img{max-width:60px!important}
+}
