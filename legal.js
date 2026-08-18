@@ -36,7 +36,7 @@
     return `
       ${missingLegalData() ? `
         <div class="legal-warning">
-          Dieses Impressum ist noch nicht vollständig veröffentlichtauglich. Anschrift und öffentliche Kontakt-E-Mail fehlen noch und werden nicht automatisch aus privaten Kontodaten abgeleitet.
+          Dieses Impressum ist noch nicht vollständig veröffentlichungsfähig. Anschrift und öffentliche Kontakt-E-Mail fehlen noch und werden nicht automatisch aus privaten Kontodaten abgeleitet.
         </div>` : ''}
       <section class="legal-section">
         <h3>Angaben gemäß § 5 DDG</h3>
