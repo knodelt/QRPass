@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="QRPass – das einfache digitale Maschinenbuch per QR-Code.">
+  <title>QRPass – Maschinenbuch</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" data-action="home" aria-label="Zur Übersicht">
+      <span class="brand-mark">QR</span>
+      <span><strong>QRPass</strong><small>Maschinenbuch</small></span>
+    </button>
+    <div class="top-actions">
+      <button class="button button-ghost desktop-only" data-action="show-help">So funktioniert's</button>
+      <button class="button button-primary" data-action="add-machine">+ Maschine</button>
+    </div>
+  </header>
+
+  <main id="app" class="app-shell" aria-live="polite"></main>
+
+  <nav class="mobile-nav" aria-label="Hauptnavigation">
+    <button data-action="home"><span>⌂</span>Übersicht</button>
+    <button data-action="show-machines"><span>▦</span>Maschinen</button>
+    <button class="mobile-add" data-action="add-machine"><span>＋</span>Neu</button>
+  </nav>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root" aria-live="assertive"></div>
+
+  <template id="modal-template">
+    <div class="modal-backdrop" data-action="close-modal">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" data-stop-close>
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow" id="modal-eyebrow"></p>
+            <h2 id="modal-title"></h2>
+          </div>
+          <button class="icon-button" data-action="close-modal" aria-label="Schließen">×</button>
+        </header>
+        <div id="modal-body" class="modal-body"></div>
+      </section>
+    </div>
+  </template>
+
+  <noscript>QRPass benötigt JavaScript.</noscript>
+</body>
+</html>
