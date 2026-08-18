@@ -9,6 +9,12 @@
     );
   }
 
+  function typeLabel(type) {
+    if (type === 'maintenance') return 'Wartung';
+    if (type === 'inspection') return 'Prüfung';
+    return 'Störung';
+  }
+
   function enhanceHistoryDelete() {
     if (!isAdmin()) return;
     if (typeof currentMachineId !== 'function' || typeof getMachine !== 'function') return;
@@ -23,7 +29,7 @@
 
     rows.forEach((row, index) => {
       const entry = history[index];
-      if (!entry || !['fault', 'maintenance'].includes(entry.type)) return;
+      if (!entry || !['fault', 'maintenance', 'inspection'].includes(entry.type)) return;
       if (row.querySelector('[data-history-admin="delete"]')) return;
 
       const content = row.querySelector('div');
@@ -36,21 +42,24 @@
       button.dataset.machine = machine.id;
       button.dataset.entry = entry.id;
       button.dataset.type = entry.type;
-      button.dataset.title = entry.title || (entry.type === 'fault' ? 'Störung' : 'Wartung');
+      button.dataset.title = entry.title || typeLabel(entry.type);
       button.textContent = 'Löschen';
       content.append(button);
     });
   }
 
   async function deleteEntry(button) {
-    const typeLabel = button.dataset.type === 'maintenance' ? 'Wartung' : 'Störung';
-    const title = button.dataset.title || typeLabel;
-    const extra = button.dataset.type === 'maintenance'
+    const type = button.dataset.type;
+    const label = typeLabel(type);
+    const title = button.dataset.title || label;
+    const extra = type === 'maintenance'
       ? '\n\nDie letzte Wartung und der nächste Wartungstermin werden danach automatisch neu berechnet.'
-      : '';
+      : type === 'inspection'
+        ? '\n\nDie letzte und nächste Prüfung werden danach automatisch aus den verbleibenden Prüfungseinträgen neu berechnet.'
+        : '';
 
     const confirmed = window.confirm(
-      `${typeLabel} „${title}“ wirklich löschen?\n\nDer Eintrag wird dauerhaft aus dem Verlauf entfernt.${extra}`
+      `${label} „${title}“ wirklich löschen?\n\nDer Eintrag wird dauerhaft aus dem Verlauf entfernt.${extra}`
     );
     if (!confirmed) return;
 
@@ -67,9 +76,7 @@
 
       if (typeof loadRemoteState === 'function') await loadRemoteState();
       if (typeof render === 'function') render();
-      if (typeof toast === 'function') {
-        toast(button.dataset.type === 'maintenance' ? 'Wartung gelöscht' : 'Störung gelöscht');
-      }
+      if (typeof toast === 'function') toast(`${label} gelöscht`);
     } catch (error) {
       button.disabled = false;
       button.textContent = 'Löschen';
