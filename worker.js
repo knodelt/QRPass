@@ -1,6 +1,15 @@
 const TENANT_ID = 'default';
 let schemaPromise;
 
+const DEFAULT_COMPANY = {
+  companyName: '',
+  logoDataUrl: '',
+  headerColor: '#181916',
+  accentColor: '#f0c400',
+  backgroundColor: '#e9e7df',
+  setupCompleted: false
+};
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -27,6 +36,18 @@ function cleanText(value, max = 5000) {
 function cleanDate(value) {
   const text = cleanText(value, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
+function cleanColor(value, fallback) {
+  const text = cleanText(value, 7).toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(text) ? text : fallback;
+}
+
+function cleanLogo(value) {
+  const text = cleanText(value, 800000);
+  if (!text) return '';
+  if (!text.startsWith('data:image/png;base64,')) return null;
+  return text;
 }
 
 function machineFromRow(row) {
@@ -56,6 +77,18 @@ function entryFromRow(row) {
     createdAt: row.created_at,
     resolved: Boolean(row.resolved),
     resolvedAt: row.resolved_at || null
+  };
+}
+
+function companyFromRow(row) {
+  if (!row) return { ...DEFAULT_COMPANY };
+  return {
+    companyName: row.company_name || '',
+    logoDataUrl: row.logo_data_url || '',
+    headerColor: row.header_color || DEFAULT_COMPANY.headerColor,
+    accentColor: row.accent_color || DEFAULT_COMPANY.accentColor,
+    backgroundColor: row.background_color || DEFAULT_COMPANY.backgroundColor,
+    setupCompleted: Boolean(row.setup_completed)
   };
 }
 
@@ -92,6 +125,18 @@ async function ensureSchema(env) {
           resolved_at TEXT
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS company_settings (
+          tenant_id TEXT PRIMARY KEY,
+          company_name TEXT NOT NULL DEFAULT '',
+          logo_data_url TEXT,
+          header_color TEXT NOT NULL DEFAULT '#181916',
+          accent_color TEXT NOT NULL DEFAULT '#f0c400',
+          background_color TEXT NOT NULL DEFAULT '#e9e7df',
+          setup_completed INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        )
+      `),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_machines_tenant ON machines(tenant_id)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_entries_machine ON entries(tenant_id, machine_id, created_at)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_entries_open ON entries(tenant_id, resolved, type)')
@@ -104,7 +149,7 @@ async function ensureSchema(env) {
 }
 
 async function getState(env) {
-  const [machinesResult, entriesResult] = await env.DB.batch([
+  const [machinesResult, entriesResult, companyResult] = await env.DB.batch([
     env.DB.prepare(`
       SELECT id, name, asset_id, area, manufacturer, model, serial,
              interval_days, last_maintenance, notes, created_at, updated_at
@@ -117,6 +162,12 @@ async function getState(env) {
       FROM entries
       WHERE tenant_id = ?
       ORDER BY created_at ASC
+    `).bind(TENANT_ID),
+    env.DB.prepare(`
+      SELECT company_name, logo_data_url, header_color, accent_color,
+             background_color, setup_completed
+      FROM company_settings
+      WHERE tenant_id = ?
     `).bind(TENANT_ID)
   ]);
 
@@ -128,7 +179,61 @@ async function getState(env) {
     if (machine) machine.history.push(entryFromRow(row));
   }
 
-  return { machines };
+  return {
+    machines,
+    company: companyFromRow((companyResult.results || [])[0])
+  };
+}
+
+async function saveCompany(request, env) {
+  const body = await readJson(request);
+  if (!body) return json({ error: 'Ungültige Firmendaten.' }, 400);
+
+  const companyName = cleanText(body.companyName, 180);
+  if (!companyName) return json({ error: 'Firmenname fehlt.' }, 400);
+
+  const logoDataUrl = cleanLogo(body.logoDataUrl);
+  if (logoDataUrl === null) return json({ error: 'Das Logo muss eine PNG-Datei sein.' }, 400);
+
+  const headerColor = cleanColor(body.headerColor, DEFAULT_COMPANY.headerColor);
+  const accentColor = cleanColor(body.accentColor, DEFAULT_COMPANY.accentColor);
+  const backgroundColor = cleanColor(body.backgroundColor, DEFAULT_COMPANY.backgroundColor);
+  const now = new Date().toISOString();
+
+  await env.DB.prepare(`
+    INSERT INTO company_settings (
+      tenant_id, company_name, logo_data_url, header_color,
+      accent_color, background_color, setup_completed, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+    ON CONFLICT(tenant_id) DO UPDATE SET
+      company_name = excluded.company_name,
+      logo_data_url = excluded.logo_data_url,
+      header_color = excluded.header_color,
+      accent_color = excluded.accent_color,
+      background_color = excluded.background_color,
+      setup_completed = 1,
+      updated_at = excluded.updated_at
+  `).bind(
+    TENANT_ID,
+    companyName,
+    logoDataUrl || null,
+    headerColor,
+    accentColor,
+    backgroundColor,
+    now
+  ).run();
+
+  return json({
+    ok: true,
+    company: {
+      companyName,
+      logoDataUrl: logoDataUrl || '',
+      headerColor,
+      accentColor,
+      backgroundColor,
+      setupCompleted: true
+    }
+  });
 }
 
 async function upsertMachine(request, env, id) {
@@ -249,6 +354,10 @@ async function handleApi(request, env, url) {
 
   if (request.method === 'GET' && url.pathname === '/api/state') {
     return json(await getState(env));
+  }
+
+  if (request.method === 'PUT' && url.pathname === '/api/company') {
+    return saveCompany(request, env);
   }
 
   const machineMatch = url.pathname.match(/^\/api\/machines\/([^/]+)$/);
