@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#11110f">
-  <meta name="description" content="QRPass – das einfache digitale Maschinenbuch per QR-Code.">
+  <meta name="theme-color" content="#171816">
+  <meta name="description" content="QRPass – digitales Maschinenbuch per QR-Code.">
   <title>QRPass – Maschinenbuch</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
@@ -18,18 +18,11 @@
       <span><strong>QRPass</strong><small>Maschinenbuch</small></span>
     </button>
     <div class="top-actions">
-      <button class="button button-ghost desktop-only" data-action="show-help">So funktioniert's</button>
       <button class="button button-primary" data-action="add-machine">+ Maschine</button>
     </div>
   </header>
 
   <main id="app" class="app-shell" aria-live="polite"></main>
-
-  <nav class="mobile-nav" aria-label="Hauptnavigation">
-    <button data-action="home"><span>⌂</span>Übersicht</button>
-    <button data-action="show-machines"><span>▦</span>Maschinen</button>
-    <button class="mobile-add" data-action="add-machine"><span>＋</span>Neu</button>
-  </nav>
 
   <div id="modal-root"></div>
   <div id="toast-root" class="toast-root" aria-live="assertive"></div>
