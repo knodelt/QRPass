@@ -1,12 +1,12 @@
 window.QRPassLegalConfig = {
   operatorName: 'Thomas Knodel',
-  businessName: '',
-  street: '',
-  postalCode: '',
-  city: '',
+  businessName: 'Games‘nMore@Volme',
+  street: 'Oberkorbecke 23',
+  postalCode: '58540',
+  city: 'Meinerzhagen',
   country: 'Deutschland',
-  email: '',
+  email: 'Qrpass@outlook.de',
   phone: '',
-  vatId: '',
+  vatId: 'DE345004989',
   updatedAt: '18.08.2026'
 };
