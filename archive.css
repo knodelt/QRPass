@@ -1,0 +1,142 @@
+.archive-open-button{white-space:nowrap}
+.archive-machine-button{margin-left:6px}
+
+.archive-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:780;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  background:rgba(14,15,13,.82);
+  padding:max(16px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));
+}
+.archive-panel{
+  width:min(820px,100%);
+  margin:0 auto;
+  border:1px solid #111;
+  background:#efede6;
+  color:#181916;
+}
+.archive-panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 18px;
+  background:#181916;
+  color:#fff;
+  border-bottom:4px solid var(--company-accent,#f0c400);
+}
+.archive-panel-head h2{margin:0;font-size:22px}
+.archive-panel-head small{display:block;margin-bottom:3px;color:#aaa;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.archive-close{width:36px;height:36px;border:1px solid #777;background:transparent;color:#fff;font-size:24px;cursor:pointer}
+.archive-panel-body{padding:18px}
+.archive-list{display:grid;border:1px solid #aaa89f;border-bottom:0}
+.archive-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:14px;
+  padding:13px 14px;
+  border-bottom:1px solid #aaa89f;
+  background:#f8f7f2;
+}
+.archive-row-main{display:grid;gap:4px;min-width:0}
+.archive-row-main strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.archive-row-main small{font-size:10px;color:#6d6b63;line-height:1.35}
+.archive-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.archive-delete{border-color:#9d342f!important;color:#8b241f!important}
+.archive-empty{display:grid;gap:7px;padding:34px 20px;text-align:center;border:1px solid #aaa89f;background:#f8f7f2}
+.archive-empty span{color:#6d6b63;font-size:11px}
+
+.qrpass-print-label{
+  width:80mm;
+  min-width:0;
+  min-height:50mm;
+  grid-template-columns:1fr auto;
+  grid-template-areas:
+    "brand qr"
+    "machine qr"
+    "asset qr"
+    "scan scan";
+  align-items:center;
+  gap:3mm 5mm;
+  padding:5mm;
+  border:1.2mm solid #111;
+  text-align:left;
+}
+.qrpass-print-label .qr-label-brand{
+  grid-area:brand;
+  display:flex;
+  align-items:center;
+  gap:3mm;
+  min-width:0;
+  padding-bottom:2mm;
+  border-bottom:.4mm solid #b8b8b8;
+}
+.qrpass-print-label .qr-label-brand img{
+  display:block;
+  max-width:24mm;
+  max-height:10mm;
+  object-fit:contain;
+}
+.qrpass-print-label .qr-label-brand>div{display:grid;gap:.8mm;min-width:0}
+.qrpass-print-label .qr-label-brand strong{font-size:11pt;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrpass-print-label .qr-label-brand small{font-size:6.5pt;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.qrpass-print-label .qr-box{
+  grid-area:qr;
+  margin:0;
+  padding:2mm;
+  border:.5mm solid #111;
+  line-height:0;
+}
+.qrpass-print-label .qr-box canvas,
+.qrpass-print-label .qr-box img{display:block!important;width:29mm!important;height:29mm!important}
+.qrpass-print-label>strong:not(.qr-label-brand strong){grid-area:machine;font-size:14pt;line-height:1.05;align-self:end}
+.qrpass-print-label>span{grid-area:asset;font-size:8pt;align-self:start}
+.qrpass-print-label .qr-scan-instruction{
+  grid-area:scan;
+  display:block;
+  margin-top:1mm;
+  padding-top:2mm;
+  border-top:.4mm solid #b8b8b8;
+  font-size:7pt;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  text-align:center;
+  color:#111;
+}
+
+@media(max-width:760px){
+  .page-head .archive-open-button{width:100%}
+  .archive-backdrop{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))}
+  .archive-panel-head{padding:14px}
+  .archive-panel-body{padding:10px}
+  .archive-row{grid-template-columns:1fr;padding:12px}
+  .archive-row-actions{justify-content:stretch}
+  .archive-row-actions .button{flex:1}
+  .archive-machine-button{margin-left:0}
+  .qrpass-print-label{width:min(80mm,100%);padding:4mm;gap:2.5mm 3mm}
+  .qrpass-print-label .qr-box canvas,
+  .qrpass-print-label .qr-box img{width:26mm!important;height:26mm!important}
+}
+
+@media print{
+  @page{margin:0}
+  html,body{background:#fff!important}
+  .qrpass-print-label{
+    position:fixed!important;
+    left:0!important;
+    top:0!important;
+    width:80mm!important;
+    height:50mm!important;
+    min-height:50mm!important;
+    margin:0!important;
+    padding:5mm!important;
+    border:1mm solid #111!important;
+    break-inside:avoid;
+    print-color-adjust:exact;
+    -webkit-print-color-adjust:exact;
+  }
+}
