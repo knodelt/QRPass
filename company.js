@@ -32,10 +32,25 @@
     };
   }
 
-  function contrastColor(hex) {
+  function channelToLinear(value) {
+    const v = value / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(hex) {
     const { r, g, b } = hexToRgb(hex);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.58 ? '#111111' : '#ffffff';
+    return 0.2126 * channelToLinear(r) + 0.7152 * channelToLinear(g) + 0.0722 * channelToLinear(b);
+  }
+
+  function contrastRatio(background, foreground) {
+    const a = luminance(background);
+    const b = luminance(foreground);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  function contrastColor(hex) {
+    const color = normalizeHex(hex, '#000000');
+    return contrastRatio(color, '#111111') >= contrastRatio(color, '#ffffff') ? '#111111' : '#ffffff';
   }
 
   function shadeColor(hex, factor = -0.18) {
@@ -90,7 +105,6 @@
         <span class="company-brand-copy"><strong>${esc(name)}</strong><small>QRPass</small></span>`;
     } else {
       brand.innerHTML = `
-        <span class="brand-mark">QR</span>
         <span class="company-brand-copy"><strong>${esc(name)}</strong><small>${company.setupCompleted ? 'QRPass' : 'Maschinenbuch'}</small></span>`;
     }
 
@@ -134,10 +148,10 @@
               <input name="companyName" required maxlength="180" value="${esc(company.companyName)}" placeholder="Firmenname">
             </div>
 
-            <div class="field">
+            <div class="field company-logo-field">
               <label>Firmenlogo</label>
-              <input id="company-logo-input" type="file" accept="image/png,.png">
-              <small class="field-hint">PNG mit transparentem Hintergrund, maximal 450 KB.</small>
+              <input id="company-logo-input" type="file" accept="image/*,.heic,.heif">
+              <small class="field-hint" id="company-logo-hint">Bild auswählen – QRPass wandelt es automatisch in PNG um, entfernt den Hintergrund und schneidet es passend zu.</small>
               ${logo ? '<button type="button" class="button button-small company-remove-logo" data-company-action="remove-logo">Logo entfernen</button>' : ''}
             </div>
 
@@ -210,32 +224,54 @@
     if (logoRoot) logoRoot.innerHTML = draftLogo ? `<img src="${draftLogo}" alt="Logo Vorschau">` : '<span>LOGO</span>';
   }
 
-  function handleLogoChange(event) {
-    const file = event.target.files?.[0];
+  function setLogoHint(text, state = '') {
+    const hint = document.querySelector('#company-logo-hint');
+    if (!hint) return;
+    hint.textContent = text;
+    hint.dataset.state = state;
+  }
+
+  async function handleLogoChange(event) {
+    const input = event.target;
+    const file = input.files?.[0];
     if (!file) return;
-    if (file.type !== 'image/png') {
-      event.target.value = '';
-      showCompanyError('Bitte eine PNG-Datei auswählen.');
-      return;
-    }
-    if (file.size > 450 * 1024) {
-      event.target.value = '';
-      showCompanyError('Das Logo ist zu groß. Maximal 450 KB.');
+
+    if (!window.QRPassLogoProcessor?.process) {
+      input.value = '';
+      showCompanyError('Die automatische Bildverarbeitung konnte nicht geladen werden. Bitte Seite neu laden.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      draftLogo = String(reader.result || '');
+    input.disabled = true;
+    showCompanyError('');
+    setLogoHint('Logo wird automatisch vorbereitet …', 'processing');
+
+    try {
+      const result = await window.QRPassLogoProcessor.process(file);
+      draftLogo = result.dataUrl;
       updatePreview();
-      const removeButton = document.querySelector('.company-remove-logo');
+
+      let removeButton = document.querySelector('.company-remove-logo');
       if (!removeButton) {
-        const input = document.querySelector('#company-logo-input');
-        input?.insertAdjacentHTML('afterend', '<button type="button" class="button button-small company-remove-logo" data-company-action="remove-logo">Logo entfernen</button>');
+        const hint = document.querySelector('#company-logo-hint');
+        hint?.insertAdjacentHTML('afterend', '<button type="button" class="button button-small company-remove-logo" data-company-action="remove-logo">Logo entfernen</button>');
       }
-      showCompanyError('');
-    };
-    reader.readAsDataURL(file);
+
+      setLogoHint(
+        result.removedBackground
+          ? 'Fertig: Hintergrund entfernt, zugeschnitten und als PNG optimiert.'
+          : 'Fertig: Bild zugeschnitten und als PNG optimiert. Ein eindeutiger Hintergrund war nicht vorhanden.',
+        'done'
+      );
+    } catch (error) {
+      draftLogo = company.logoDataUrl || '';
+      updatePreview();
+      input.value = '';
+      setLogoHint('Bild auswählen – QRPass verarbeitet das Logo automatisch.', '');
+      showCompanyError(error.message || 'Das Logo konnte nicht verarbeitet werden.');
+    } finally {
+      input.disabled = false;
+    }
   }
 
   function showCompanyError(text) {
@@ -255,8 +291,13 @@
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('[type="submit"]');
-    const values = Object.fromEntries(new FormData(form).entries());
+    const logoInput = form.querySelector('#company-logo-input');
+    if (logoInput?.disabled) {
+      showCompanyError('Das Logo wird noch verarbeitet. Bitte kurz warten.');
+      return;
+    }
 
+    const values = Object.fromEntries(new FormData(form).entries());
     const payload = {
       companyName: String(values.companyName || '').trim(),
       logoDataUrl: draftLogo,
@@ -312,6 +353,7 @@
       const fileInput = document.querySelector('#company-logo-input');
       if (fileInput) fileInput.value = '';
       button.remove();
+      setLogoHint('Bild auswählen – QRPass wandelt es automatisch in PNG um und entfernt den Hintergrund.', '');
       updatePreview();
     }
   });
