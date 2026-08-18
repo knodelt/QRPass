@@ -92,7 +92,7 @@
 }
 .qrpass-print-label .qr-box canvas,
 .qrpass-print-label .qr-box img{display:block!important;width:29mm!important;height:29mm!important}
-.qrpass-print-label>strong:not(.qr-label-brand strong){grid-area:machine;font-size:14pt;line-height:1.05;align-self:end}
+.qrpass-print-label>strong{grid-area:machine;font-size:14pt;line-height:1.05;align-self:end}
 .qrpass-print-label>span{grid-area:asset;font-size:8pt;align-self:start}
 .qrpass-print-label .qr-scan-instruction{
   grid-area:scan;
