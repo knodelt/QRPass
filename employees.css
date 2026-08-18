@@ -1,6 +1,5 @@
 body[data-role="employee"] [data-action="add-machine"],
 body[data-role="employee"] [data-action="edit-machine"],
-body[data-role="employee"] [data-action="resolve-fault"],
 body[data-role="employee"] [data-company-action="settings"],
 body[data-role="employee"] .company-settings-button{
   display:none!important;
