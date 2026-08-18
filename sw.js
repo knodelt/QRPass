@@ -1,4 +1,4 @@
-const CACHE = 'qrpass-shell-v1.1.2';
+const CACHE = 'qrpass-shell-v1.1.3';
 const ASSETS = [
   './',
   './index.html',
