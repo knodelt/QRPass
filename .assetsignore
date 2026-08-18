@@ -6,6 +6,7 @@
 .wrangler/**
 README.md
 wrangler.jsonc
+worker.js
 .assetsignore
 node_modules
 node_modules/**
