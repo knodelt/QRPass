@@ -214,7 +214,10 @@
 
     const brand = document.createElement('div');
     brand.className = 'qr-label-brand';
-    if (company?.logoDataUrl) {
+    const hasLogo = Boolean(company?.logoDataUrl);
+
+    if (hasLogo) {
+      brand.classList.add('has-logo');
       const img = document.createElement('img');
       img.src = company.logoDataUrl;
       img.alt = company.companyName ? `${company.companyName} Logo` : 'Firmenlogo';
@@ -222,11 +225,14 @@
     }
 
     const brandCopy = document.createElement('div');
-    const firm = document.createElement('strong');
-    firm.textContent = company?.companyName || 'QRPass';
+    if (!hasLogo) {
+      const firm = document.createElement('strong');
+      firm.textContent = company?.companyName || 'QRPass';
+      brandCopy.append(firm);
+    }
     const product = document.createElement('small');
-    product.textContent = 'Maschinenbuch';
-    brandCopy.append(firm, product);
+    product.textContent = 'Betriebsmittelbuch';
+    brandCopy.append(product);
     brand.append(brandCopy);
     label.prepend(brand);
 
