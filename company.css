@@ -26,6 +26,7 @@
 }
 .company-settings-button:hover{background:color-mix(in srgb,var(--company-header-text) 10%,transparent)!important}
 .button-primary{background:var(--company-accent)!important;color:var(--company-accent-text)!important}
+.button-primary:hover{background:var(--company-accent)!important;filter:brightness(1.05)}
 .modal-header{background:var(--company-accent)!important;color:var(--company-accent-text)!important}
 .modal-header .eyebrow{color:color-mix(in srgb,var(--company-accent-text) 70%,transparent)!important}
 
