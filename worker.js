@@ -1,5 +1,8 @@
-const TENANT_ID = 'default';
 let schemaPromise;
+
+const SESSION_COOKIE = 'qrpass_session';
+const SESSION_DAYS = 30;
+const PASSWORD_ITERATIONS = 150000;
 
 const DEFAULT_COMPANY = {
   companyName: '',
@@ -10,12 +13,13 @@ const DEFAULT_COMPANY = {
   setupCompleted: false
 };
 
-function json(data, status = 200) {
+function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
+      'cache-control': 'no-store',
+      ...extraHeaders
     }
   });
 }
@@ -48,6 +52,88 @@ function cleanLogo(value) {
   if (!text) return '';
   if (!text.startsWith('data:image/png;base64,')) return null;
   return text;
+}
+
+function normalizeEmail(value) {
+  return cleanText(value, 254).toLowerCase();
+}
+
+function validEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function parseCookies(request) {
+  const header = request.headers.get('cookie') || '';
+  const result = {};
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key) result[key] = value;
+  }
+  return result;
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlToBytes(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+function randomToken(size = 32) {
+  const bytes = new Uint8Array(size);
+  crypto.getRandomValues(bytes);
+  return bytesToBase64Url(bytes);
+}
+
+async function sha256(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function passwordHash(password, saltText) {
+  const material = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: base64UrlToBytes(saltText),
+      iterations: PASSWORD_ITERATIONS
+    },
+    material,
+    256
+  );
+  return bytesToBase64Url(new Uint8Array(bits));
+}
+
+function constantEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function sessionCookie(token) {
+  const maxAge = SESSION_DAYS * 24 * 60 * 60;
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+function clearSessionCookie() {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 function machineFromRow(row) {
@@ -96,6 +182,32 @@ async function ensureSchema(env) {
   if (!schemaPromise) {
     schemaPromise = env.DB.batch([
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS tenants (
+          id TEXT PRIMARY KEY,
+          created_at TEXT NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'admin',
+          created_at TEXT NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          token_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          tenant_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS machines (
           id TEXT PRIMARY KEY,
           tenant_id TEXT NOT NULL,
@@ -137,6 +249,9 @@ async function ensureSchema(env) {
           updated_at TEXT NOT NULL
         )
       `),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)'),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)'),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_machines_tenant ON machines(tenant_id)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_entries_machine ON entries(tenant_id, machine_id, created_at)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_entries_open ON entries(tenant_id, resolved, type)')
@@ -148,7 +263,185 @@ async function ensureSchema(env) {
   return schemaPromise;
 }
 
-async function getState(env) {
+async function createSession(env, userId, tenantId) {
+  const token = randomToken(32);
+  const tokenHash = await sha256(token);
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + SESSION_DAYS * 86400000);
+
+  await env.DB.prepare(`
+    INSERT INTO sessions (token_hash, user_id, tenant_id, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).bind(
+    tokenHash,
+    userId,
+    tenantId,
+    createdAt.toISOString(),
+    expiresAt.toISOString()
+  ).run();
+
+  return token;
+}
+
+async function getSession(request, env) {
+  const token = parseCookies(request)[SESSION_COOKIE];
+  if (!token) return null;
+
+  const tokenHash = await sha256(token);
+  const now = new Date().toISOString();
+  const row = await env.DB.prepare(`
+    SELECT s.token_hash, s.user_id, s.tenant_id, s.expires_at,
+           u.email, u.role
+    FROM sessions s
+    JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
+    WHERE s.token_hash = ? AND s.expires_at > ?
+  `).bind(tokenHash, now).first();
+
+  if (!row) {
+    await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash).run().catch(() => {});
+    return null;
+  }
+
+  return {
+    tokenHash: row.token_hash,
+    userId: row.user_id,
+    tenantId: row.tenant_id,
+    email: row.email,
+    role: row.role
+  };
+}
+
+async function register(request, env) {
+  const body = await readJson(request);
+  if (!body) return json({ error: 'Ungültige Daten.' }, 400);
+
+  const companyName = cleanText(body.companyName, 180);
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || '');
+
+  if (!companyName) return json({ error: 'Firmenname fehlt.' }, 400);
+  if (!validEmail(email)) return json({ error: 'Bitte eine gültige E-Mail-Adresse eingeben.' }, 400);
+  if (password.length < 8) return json({ error: 'Das Passwort muss mindestens 8 Zeichen lang sein.' }, 400);
+  if (password.length > 200) return json({ error: 'Das Passwort ist zu lang.' }, 400);
+
+  const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  if (existing) return json({ error: 'Für diese E-Mail-Adresse gibt es bereits ein Konto.' }, 409);
+
+  const firstUserResult = await env.DB.prepare('SELECT COUNT(*) AS count FROM users').first();
+  const isFirstUser = Number(firstUserResult?.count || 0) === 0;
+  const tenantId = `tenant_${crypto.randomUUID()}`;
+  const userId = `user_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const salt = randomToken(16);
+  const hash = await passwordHash(password, salt);
+
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO tenants (id, created_at) VALUES (?, ?)').bind(tenantId, now),
+      env.DB.prepare(`
+        INSERT INTO users (id, tenant_id, email, password_hash, password_salt, role, created_at)
+        VALUES (?, ?, ?, ?, ?, 'admin', ?)
+      `).bind(userId, tenantId, email, hash, salt, now)
+    ]);
+  } catch (error) {
+    const duplicate = String(error?.message || '').toLowerCase().includes('unique');
+    return json({ error: duplicate ? 'Für diese E-Mail-Adresse gibt es bereits ein Konto.' : 'Konto konnte nicht erstellt werden.' }, duplicate ? 409 : 500);
+  }
+
+  if (isFirstUser) {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE machines SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId),
+      env.DB.prepare("UPDATE entries SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId),
+      env.DB.prepare("UPDATE company_settings SET tenant_id = ? WHERE tenant_id = 'default'").bind(tenantId)
+    ]);
+  }
+
+  const existingSettings = await env.DB.prepare(
+    'SELECT tenant_id, company_name FROM company_settings WHERE tenant_id = ?'
+  ).bind(tenantId).first();
+
+  if (existingSettings) {
+    await env.DB.prepare(`
+      UPDATE company_settings
+      SET company_name = CASE WHEN company_name = '' THEN ? ELSE company_name END,
+          updated_at = ?
+      WHERE tenant_id = ?
+    `).bind(companyName, now, tenantId).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO company_settings (
+        tenant_id, company_name, logo_data_url, header_color,
+        accent_color, background_color, setup_completed, updated_at
+      ) VALUES (?, ?, NULL, ?, ?, ?, 0, ?)
+    `).bind(
+      tenantId,
+      companyName,
+      DEFAULT_COMPANY.headerColor,
+      DEFAULT_COMPANY.accentColor,
+      DEFAULT_COMPANY.backgroundColor,
+      now
+    ).run();
+  }
+
+  const token = await createSession(env, userId, tenantId);
+  return json(
+    { ok: true, user: { email, role: 'admin' } },
+    201,
+    { 'set-cookie': sessionCookie(token) }
+  );
+}
+
+async function login(request, env) {
+  const body = await readJson(request);
+  if (!body) return json({ error: 'Ungültige Daten.' }, 400);
+
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || '');
+  if (!validEmail(email) || !password) return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
+
+  const user = await env.DB.prepare(`
+    SELECT id, tenant_id, email, password_hash, password_salt, role
+    FROM users
+    WHERE email = ?
+  `).bind(email).first();
+
+  if (!user) return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
+
+  const candidate = await passwordHash(password, user.password_salt);
+  if (!constantEqual(candidate, user.password_hash)) {
+    return json({ error: 'E-Mail oder Passwort ist falsch.' }, 401);
+  }
+
+  const token = await createSession(env, user.id, user.tenant_id);
+  return json(
+    { ok: true, user: { email: user.email, role: user.role } },
+    200,
+    { 'set-cookie': sessionCookie(token) }
+  );
+}
+
+async function logout(request, env) {
+  const token = parseCookies(request)[SESSION_COOKIE];
+  if (token) {
+    const tokenHash = await sha256(token);
+    await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash).run().catch(() => {});
+  }
+  return json({ ok: true }, 200, { 'set-cookie': clearSessionCookie() });
+}
+
+async function authSession(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return json({ authenticated: false }, 401, { 'set-cookie': clearSessionCookie() });
+  return json({
+    authenticated: true,
+    user: {
+      email: session.email,
+      role: session.role
+    }
+  });
+}
+
+async function getState(env, tenantId) {
   const [machinesResult, entriesResult, companyResult] = await env.DB.batch([
     env.DB.prepare(`
       SELECT id, name, asset_id, area, manufacturer, model, serial,
@@ -156,19 +449,19 @@ async function getState(env) {
       FROM machines
       WHERE tenant_id = ?
       ORDER BY created_at DESC
-    `).bind(TENANT_ID),
+    `).bind(tenantId),
     env.DB.prepare(`
       SELECT id, machine_id, type, title, text, created_at, resolved, resolved_at
       FROM entries
       WHERE tenant_id = ?
       ORDER BY created_at ASC
-    `).bind(TENANT_ID),
+    `).bind(tenantId),
     env.DB.prepare(`
       SELECT company_name, logo_data_url, header_color, accent_color,
              background_color, setup_completed
       FROM company_settings
       WHERE tenant_id = ?
-    `).bind(TENANT_ID)
+    `).bind(tenantId)
   ]);
 
   const machines = (machinesResult.results || []).map(machineFromRow);
@@ -185,7 +478,7 @@ async function getState(env) {
   };
 }
 
-async function saveCompany(request, env) {
+async function saveCompany(request, env, tenantId) {
   const body = await readJson(request);
   if (!body) return json({ error: 'Ungültige Firmendaten.' }, 400);
 
@@ -193,7 +486,7 @@ async function saveCompany(request, env) {
   if (!companyName) return json({ error: 'Firmenname fehlt.' }, 400);
 
   const logoDataUrl = cleanLogo(body.logoDataUrl);
-  if (logoDataUrl === null) return json({ error: 'Das Logo muss eine PNG-Datei sein.' }, 400);
+  if (logoDataUrl === null) return json({ error: 'Das Logo konnte nicht verarbeitet werden.' }, 400);
 
   const headerColor = cleanColor(body.headerColor, DEFAULT_COMPANY.headerColor);
   const accentColor = cleanColor(body.accentColor, DEFAULT_COMPANY.accentColor);
@@ -214,7 +507,7 @@ async function saveCompany(request, env) {
       setup_completed = 1,
       updated_at = excluded.updated_at
   `).bind(
-    TENANT_ID,
+    tenantId,
     companyName,
     logoDataUrl || null,
     headerColor,
@@ -236,13 +529,16 @@ async function saveCompany(request, env) {
   });
 }
 
-async function upsertMachine(request, env, id) {
+async function upsertMachine(request, env, tenantId, id) {
   const body = await readJson(request);
   if (!body) return json({ error: 'Ungültige Daten.' }, 400);
 
   const machineId = cleanText(id || body.id, 100);
   const name = cleanText(body.name, 180);
   if (!machineId || !name) return json({ error: 'Name der Maschine fehlt.' }, 400);
+
+  const existing = await env.DB.prepare('SELECT tenant_id FROM machines WHERE id = ?').bind(machineId).first();
+  if (existing && existing.tenant_id !== tenantId) return json({ error: 'Maschine nicht gefunden.' }, 404);
 
   const now = new Date().toISOString();
   const createdAt = cleanText(body.createdAt, 40) || now;
@@ -267,7 +563,7 @@ async function upsertMachine(request, env, id) {
     WHERE machines.tenant_id = excluded.tenant_id
   `).bind(
     machineId,
-    TENANT_ID,
+    tenantId,
     name,
     cleanText(body.assetId, 120),
     cleanText(body.area, 160),
@@ -284,7 +580,7 @@ async function upsertMachine(request, env, id) {
   return json({ ok: true, id: machineId });
 }
 
-async function addEntry(request, env, machineId) {
+async function addEntry(request, env, tenantId, machineId) {
   const body = await readJson(request);
   if (!body) return json({ error: 'Ungültige Daten.' }, 400);
 
@@ -295,8 +591,11 @@ async function addEntry(request, env, machineId) {
 
   const machine = await env.DB.prepare(
     'SELECT id FROM machines WHERE id = ? AND tenant_id = ?'
-  ).bind(machineId, TENANT_ID).first();
+  ).bind(machineId, tenantId).first();
   if (!machine) return json({ error: 'Maschine nicht gefunden.' }, 404);
+
+  const existingEntry = await env.DB.prepare('SELECT tenant_id FROM entries WHERE id = ?').bind(id).first();
+  if (existingEntry && existingEntry.tenant_id !== tenantId) return json({ error: 'Eintrag konnte nicht gespeichert werden.' }, 409);
 
   const createdAt = cleanText(body.createdAt, 40) || new Date().toISOString();
   const title = cleanText(body.title, 220) || (type === 'note' ? 'Notiz' : 'Eintrag');
@@ -311,7 +610,7 @@ async function addEntry(request, env, machineId) {
       ON CONFLICT(id) DO NOTHING
     `).bind(
       id,
-      TENANT_ID,
+      tenantId,
       machineId,
       type,
       title,
@@ -329,7 +628,7 @@ async function addEntry(request, env, machineId) {
         UPDATE machines
         SET last_maintenance = ?, updated_at = ?
         WHERE id = ? AND tenant_id = ?
-      `).bind(maintenanceDate, new Date().toISOString(), machineId, TENANT_ID)
+      `).bind(maintenanceDate, new Date().toISOString(), machineId, tenantId)
     );
   }
 
@@ -337,13 +636,13 @@ async function addEntry(request, env, machineId) {
   return json({ ok: true, id });
 }
 
-async function resolveEntry(env, machineId, entryId) {
+async function resolveEntry(env, tenantId, machineId, entryId) {
   const now = new Date().toISOString();
   const result = await env.DB.prepare(`
     UPDATE entries
     SET resolved = 1, resolved_at = ?
     WHERE id = ? AND machine_id = ? AND tenant_id = ? AND type = 'fault'
-  `).bind(now, entryId, machineId, TENANT_ID).run();
+  `).bind(now, entryId, machineId, tenantId).run();
 
   if (!result.meta?.changes) return json({ error: 'Störung nicht gefunden.' }, 404);
   return json({ ok: true, resolvedAt: now });
@@ -352,28 +651,38 @@ async function resolveEntry(env, machineId, entryId) {
 async function handleApi(request, env, url) {
   await ensureSchema(env);
 
+  if (request.method === 'POST' && url.pathname === '/api/auth/register') return register(request, env);
+  if (request.method === 'POST' && url.pathname === '/api/auth/login') return login(request, env);
+  if (request.method === 'POST' && url.pathname === '/api/auth/logout') return logout(request, env);
+  if (request.method === 'GET' && url.pathname === '/api/auth/session') return authSession(request, env);
+
+  const session = await getSession(request, env);
+  if (!session) return json({ error: 'Nicht angemeldet.' }, 401, { 'set-cookie': clearSessionCookie() });
+  const tenantId = session.tenantId;
+
   if (request.method === 'GET' && url.pathname === '/api/state') {
-    return json(await getState(env));
+    return json(await getState(env, tenantId));
   }
 
   if (request.method === 'PUT' && url.pathname === '/api/company') {
-    return saveCompany(request, env);
+    return saveCompany(request, env, tenantId);
   }
 
   const machineMatch = url.pathname.match(/^\/api\/machines\/([^/]+)$/);
   if (machineMatch && request.method === 'PUT') {
-    return upsertMachine(request, env, decodeURIComponent(machineMatch[1]));
+    return upsertMachine(request, env, tenantId, decodeURIComponent(machineMatch[1]));
   }
 
   const entriesMatch = url.pathname.match(/^\/api\/machines\/([^/]+)\/entries$/);
   if (entriesMatch && request.method === 'POST') {
-    return addEntry(request, env, decodeURIComponent(entriesMatch[1]));
+    return addEntry(request, env, tenantId, decodeURIComponent(entriesMatch[1]));
   }
 
   const resolveMatch = url.pathname.match(/^\/api\/machines\/([^/]+)\/entries\/([^/]+)\/resolve$/);
   if (resolveMatch && request.method === 'PATCH') {
     return resolveEntry(
       env,
+      tenantId,
       decodeURIComponent(resolveMatch[1]),
       decodeURIComponent(resolveMatch[2])
     );
@@ -391,7 +700,7 @@ export default {
         return await handleApi(request, env, url);
       } catch (error) {
         console.error('QRPass API error', error);
-        return json({ error: 'Datenbankfehler. Bitte erneut versuchen.' }, 500);
+        return json({ error: 'Serverfehler. Bitte erneut versuchen.' }, 500);
       }
     }
 
