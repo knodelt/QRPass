@@ -222,18 +222,16 @@
       img.src = company.logoDataUrl;
       img.alt = company.companyName ? `${company.companyName} Logo` : 'Firmenlogo';
       brand.append(img);
-    }
-
-    const brandCopy = document.createElement('div');
-    if (!hasLogo) {
+    } else {
+      const brandCopy = document.createElement('div');
       const firm = document.createElement('strong');
       firm.textContent = company?.companyName || 'QRPass';
-      brandCopy.append(firm);
+      const product = document.createElement('small');
+      product.textContent = 'Betriebsmittelbuch';
+      brandCopy.append(firm, product);
+      brand.append(brandCopy);
     }
-    const product = document.createElement('small');
-    product.textContent = 'Betriebsmittelbuch';
-    brandCopy.append(product);
-    brand.append(brandCopy);
+
     label.prepend(brand);
 
     const instruction = document.createElement('small');
