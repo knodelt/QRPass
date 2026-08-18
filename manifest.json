@@ -1,0 +1,11 @@
+{
+  "name": "QRPass – Maschinenbuch",
+  "short_name": "QRPass",
+  "description": "Das einfache digitale Maschinenbuch per QR-Code.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0b1220",
+  "lang": "de-DE"
+}
