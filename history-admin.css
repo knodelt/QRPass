@@ -1,0 +1,22 @@
+body[data-role="employee"] .history-delete-button{display:none!important}
+
+.history-delete-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:max-content;
+  margin-top:9px;
+  border:1px solid #9d342f;
+  border-radius:2px;
+  padding:6px 9px;
+  background:#fff7f6;
+  color:#8b241f;
+  font:800 10px/1 Arial,sans-serif;
+  cursor:pointer;
+}
+.history-delete-button:hover{background:#fff0ee}
+.history-delete-button:disabled{opacity:.55;cursor:wait}
+
+@media(max-width:760px){
+  .history-delete-button{min-height:32px;padding:7px 10px}
+}
