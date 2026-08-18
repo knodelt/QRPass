@@ -11,16 +11,16 @@ function fmtDateTime(value){return new Intl.DateTimeFormat('de-DE',{day:'2-digit
 function esc(value=''){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function daysUntil(date){const a=new Date(`${isoDate()}T12:00:00`),b=new Date(`${date}T12:00:00`);return Math.round((b-a)/86400000)}
 
-function demoState(){
-  const now=new Date().toISOString();
-  const today=isoDate();
-  return {machines:[
-    {id:'demo_presse_04',name:'Presse 04',assetId:'PR-004',area:'Halle 2',manufacturer:'Schuler',model:'Presse',serial:'',interval:90,lastMaintenance:addDays(today,-75),notes:'Demo-Maschine',createdAt:now,history:[{id:uid('h'),type:'maintenance',title:'Wartung durchgeführt',text:'Sichtprüfung und Schmierung durchgeführt.',createdAt:new Date(Date.now()-75*86400000).toISOString()}]},
-    {id:'demo_pumpe_12',name:'Kühlmittelpumpe 12',assetId:'P-012',area:'Halle 1',manufacturer:'KSB',model:'',serial:'',interval:180,lastMaintenance:addDays(today,-40),notes:'Demo-Maschine',createdAt:now,history:[{id:uid('h'),type:'fault',title:'Leckage am Anschluss',text:'Leichte Undichtigkeit festgestellt.',createdAt:new Date(Date.now()-2*86400000).toISOString(),resolved:false}]},
-    {id:'demo_kompressor_02',name:'Kompressor 02',assetId:'K-002',area:'Technikraum',manufacturer:'Kaeser',model:'',serial:'',interval:365,lastMaintenance:addDays(today,-120),notes:'Demo-Maschine',createdAt:now,history:[]}
-  ]};
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(!raw)return {machines:[]};
+    const data=JSON.parse(raw);
+    data.machines=Array.isArray(data.machines)?data.machines.filter(m=>!String(m.id||'').startsWith('demo_')):[];
+    localStorage.setItem(STORE_KEY,JSON.stringify(data));
+    return data;
+  }catch(e){return {machines:[]}}
 }
-function loadState(){try{const raw=localStorage.getItem(STORE_KEY);return raw?JSON.parse(raw):demoState()}catch(e){return demoState()}}
 function saveState(){localStorage.setItem(STORE_KEY,JSON.stringify(state))}
 function machineNextDue(m){return m.lastMaintenance?addDays(m.lastMaintenance,m.interval||0):null}
 function openFaults(m){return (m.history||[]).filter(h=>h.type==='fault'&&!h.resolved)}
@@ -40,14 +40,16 @@ function renderDashboard(){
   const faults=machines.reduce((n,m)=>n+openFaults(m).length,0);
   const due=machines.filter(m=>{const d=machineNextDue(m);return d&&daysUntil(d)<=14}).length;
   app.innerHTML=`
-    <section class="hero"><div><p class="eyebrow">Digitales Maschinenbuch</p><h1>Was braucht Aufmerksamkeit?</h1><p>Maschine öffnen, QR scannen, Störung oder Wartung dokumentieren. Fertig.</p></div></section>
-    <section class="stats" aria-label="Kennzahlen">
+    <section class="page-head">
+      <h1>Maschinen</h1>
+      <input id="machine-search" class="search" type="search" placeholder="Maschine, Nummer oder Bereich suchen" aria-label="Maschinen suchen">
+    </section>
+    <section class="stats" aria-label="Übersicht">
       <article class="stat"><span>Maschinen</span><strong>${machines.length}</strong></article>
       <article class="stat"><span>Offene Störungen</span><strong>${faults}</strong></article>
       <article class="stat"><span>Wartung fällig</span><strong>${due}</strong></article>
     </section>
     <section class="panel" id="machines">
-      <div class="panel-head"><h2>Maschinen</h2><input id="machine-search" class="search" type="search" placeholder="Maschine, Nummer oder Bereich suchen…" aria-label="Maschinen suchen"></div>
       <div id="machine-list" class="machine-list"></div>
     </section>`;
   renderMachineList(machines);
@@ -58,7 +60,7 @@ function renderDashboard(){
 }
 function renderMachineList(machines){
   const root=document.querySelector('#machine-list');if(!root)return;
-  if(!machines.length){root.innerHTML='<div class="empty"><strong>Keine Maschine gefunden</strong>Lege eine neue Maschine an oder ändere die Suche.</div>';return}
+  if(!machines.length){root.innerHTML='<div class="empty"><strong>Noch keine Maschinen</strong><button class="button button-primary" data-action="add-machine">Maschine anlegen</button></div>';return}
   root.innerHTML=machines.map(m=>{const s=machineStatus(m);const due=machineNextDue(m);return `
     <article class="machine-row">
       <div class="machine-main"><button data-action="open-machine" data-id="${esc(m.id)}">${esc(m.name)}</button><small>${esc(m.assetId||'Keine Anlagennummer')} · ${esc(m.area||'Kein Bereich')}</small></div>
@@ -69,12 +71,17 @@ function renderMachineList(machines){
 }
 function renderDetail(id){
   const m=getMachine(id);
-  if(!m){app.innerHTML='<section class="panel empty"><strong>Maschine nicht gefunden</strong>Dieser QR-Code gehört nicht zu den Daten auf diesem Gerät.<br><br><button class="button button-primary" data-action="home">Zur Übersicht</button></section>';return}
+  if(!m){app.innerHTML='<section class="panel empty"><strong>Maschine nicht gefunden</strong><button class="button button-primary" data-action="home">Zur Übersicht</button></section>';return}
   const s=machineStatus(m), due=machineNextDue(m), faults=openFaults(m);
   const history=[...(m.history||[])].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   app.innerHTML=`
     <section class="detail-head">
-      <div><button class="button button-ghost button-small" data-action="home">← Übersicht</button><p class="eyebrow" style="margin-top:18px">${esc(m.assetId||'Maschine')}</p><h1>${esc(m.name)}</h1><p>${esc(m.area||'Kein Bereich')} · <span class="status status-${s.key}">${s.label}</span></p></div>
+      <div>
+        <button class="button button-ghost button-small" data-action="home">← Übersicht</button>
+        <p class="eyebrow">${esc(m.assetId||'Maschine')}</p>
+        <h1>${esc(m.name)}</h1>
+        <p>${esc(m.area||'Kein Bereich')} · <span class="status status-${s.key}">${s.label}</span></p>
+      </div>
       <div class="detail-actions"><button class="button button-danger" data-action="report-fault" data-id="${esc(m.id)}">Störung melden</button><button class="button button-primary" data-action="add-maintenance" data-id="${esc(m.id)}">Wartung eintragen</button></div>
     </section>
     <section class="detail-grid">
@@ -88,12 +95,12 @@ function renderDetail(id){
           <div class="info-box"><span>Letzte Wartung</span><strong>${fmtDate(m.lastMaintenance)}</strong></div>
           <div class="info-box"><span>Nächste Wartung</span><strong>${fmtDate(due)}</strong></div>
         </div>
-        ${m.notes?`<div style="padding:0 18px 18px"><small class="muted">Notiz</small><p>${esc(m.notes)}</p></div>`:''}
+        ${m.notes?`<div class="machine-note"><small>Notiz</small><p>${esc(m.notes)}</p></div>`:''}
         ${faults.map(f=>`<div class="fault-card"><strong>${esc(f.title)}</strong><p>${esc(f.text||'Keine Beschreibung')}</p><button class="button button-small" data-action="resolve-fault" data-machine="${esc(m.id)}" data-entry="${esc(f.id)}">Als erledigt markieren</button></div>`).join('')}
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Verlauf</h2><button class="button button-small" data-action="add-note" data-id="${esc(m.id)}">+ Notiz</button></div>
-        <div class="history">${history.length?history.map(h=>`<article class="history-item"><span class="dot ${h.type}"></span><div><p>${esc(h.title)}${h.type==='fault'&&h.resolved?' · erledigt':''}</p><small>${esc(h.text||'')}</small></div><time>${fmtDateTime(h.createdAt)}</time></article>`).join(''):'<div class="empty"><strong>Noch kein Verlauf</strong>Wartungen, Störungen und Notizen erscheinen hier.</div>'}</div>
+        <div class="history">${history.length?history.map(h=>`<article class="history-item"><span class="dot ${h.type}"></span><div><p>${esc(h.title)}${h.type==='fault'&&h.resolved?' · erledigt':''}</p><small>${esc(h.text||'')}</small></div><time>${fmtDateTime(h.createdAt)}</time></article>`).join(''):'<div class="empty"><strong>Noch kein Verlauf</strong></div>'}</div>
       </div>
     </section>`;
 }
@@ -127,18 +134,15 @@ function showMaintenanceForm(m){openModal({eyebrow:m.assetId||'Wartung',title:`W
 function showNoteForm(m){openModal({eyebrow:m.assetId||'Notiz',title:`Notiz · ${m.name}`,body:`<form id="note-form"><div class="field"><label>Notiz *</label><textarea name="text" required placeholder="Kurze Information für den Verlauf"></textarea></div><div class="form-actions"><button type="button" class="button" data-action="close-modal">Abbrechen</button><button class="button button-primary" type="submit">Notiz speichern</button></div></form>`,onReady:root=>root.querySelector('#note-form').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget).entries());m.history.push({id:uid('note'),type:'note',title:'Notiz',text:d.text,createdAt:new Date().toISOString()});saveState();closeModal();toast('Notiz gespeichert');render()})})}
 function showQR(m){
   const url=`${location.origin}${location.pathname}#machine/${encodeURIComponent(m.id)}`;
-  openModal({eyebrow:m.assetId||'QR-Code',title:m.name,body:`<div class="qr-wrap"><div class="qr-label"><div id="qr-code" class="qr-box"></div><strong>${esc(m.name)}</strong><span>${esc(m.assetId||'')}</span></div><p class="qr-help">Diesen QR-Code an der Maschine anbringen. Beim Scannen öffnet QRPass direkt diese Maschine.</p><div class="form-actions" style="justify-content:center"><button class="button" data-action="copy-qr-link" data-url="${esc(url)}">Link kopieren</button><button class="button button-primary" data-action="print-qr">QR drucken</button></div></div>`,onReady:()=>{
-    const target=document.querySelector('#qr-code');if(window.QRCode)new QRCode(target,{text:url,width:190,height:190,colorDark:'#111827',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else target.innerHTML=`<p>QR-Code konnte nicht geladen werden.</p><small>${esc(url)}</small>`;
+  openModal({eyebrow:m.assetId||'QR-Code',title:m.name,body:`<div class="qr-wrap"><div class="qr-label"><div id="qr-code" class="qr-box"></div><strong>${esc(m.name)}</strong><span>${esc(m.assetId||'')}</span></div><div class="form-actions qr-actions"><button class="button" data-action="copy-qr-link" data-url="${esc(url)}">Link kopieren</button><button class="button button-primary" data-action="print-qr">QR drucken</button></div></div>`,onReady:()=>{
+    const target=document.querySelector('#qr-code');if(window.QRCode)new QRCode(target,{text:url,width:190,height:190,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else target.innerHTML=`<small>${esc(url)}</small>`;
   }});
 }
-function showHelp(){openModal({eyebrow:'QRPass 0.1',title:'In drei Schritten',body:`<div class="help-list"><div class="help-step"><span>1</span><div><strong>Maschine anlegen</strong><p>Name, Nummer, Bereich und Wartungsintervall reichen.</p></div></div><div class="help-step"><span>2</span><div><strong>QR-Code drucken</strong><p>QR an der Maschine anbringen und später direkt dorthin scannen.</p></div></div><div class="help-step"><span>3</span><div><strong>Dokumentieren</strong><p>Störung, Wartung oder kurze Notiz eintragen. Alles landet im Verlauf.</p></div></div><p class="muted"><strong>Version 0.1:</strong> Daten werden aktuell auf diesem Gerät gespeichert. Gemeinsame Firmendatenbank und Benutzer kommen als nächster technischer Schritt.</p></div>`})}
-function toast(text){const el=document.createElement('div');el.className='toast';el.textContent=text;document.querySelector('#toast-root').append(el);setTimeout(()=>el.remove(),2600)}
+function toast(text){const el=document.createElement('div');el.className='toast';el.textContent=text;document.querySelector('#toast-root').append(el);setTimeout(()=>el.remove(),2200)}
 
 function handleClick(e){
-  if(e.target.closest('[data-stop-close]')&&e.target.dataset.action!=='close-modal')e.stopPropagation();
   const b=e.target.closest('[data-action]');if(!b)return;const action=b.dataset.action;
   if(action==='home'){location.hash='';render()}
-  if(action==='show-machines'){location.hash='';render();setTimeout(()=>document.querySelector('#machines')?.scrollIntoView({behavior:'smooth'}),50)}
   if(action==='add-machine')showMachineForm();
   if(action==='open-machine')location.hash=`machine/${encodeURIComponent(b.dataset.id)}`;
   if(action==='edit-machine')showMachineForm(getMachine(b.dataset.id));
@@ -146,7 +150,6 @@ function handleClick(e){
   if(action==='add-maintenance')showMaintenanceForm(getMachine(b.dataset.id));
   if(action==='add-note')showNoteForm(getMachine(b.dataset.id));
   if(action==='show-qr')showQR(getMachine(b.dataset.id));
-  if(action==='show-help')showHelp();
   if(action==='close-modal')closeModal();
   if(action==='resolve-fault'){const m=getMachine(b.dataset.machine),h=m?.history.find(x=>x.id===b.dataset.entry);if(h){h.resolved=true;h.resolvedAt=new Date().toISOString();saveState();toast('Störung erledigt');render()}}
   if(action==='print-qr')window.print();
