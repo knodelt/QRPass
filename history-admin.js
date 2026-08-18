@@ -12,6 +12,7 @@
   function typeLabel(type) {
     if (type === 'maintenance') return 'Wartung';
     if (type === 'inspection') return 'Prüfung';
+    if (type === 'note') return 'Notiz';
     return 'Störung';
   }
 
@@ -29,7 +30,7 @@
 
     rows.forEach((row, index) => {
       const entry = history[index];
-      if (!entry || !['fault', 'maintenance', 'inspection'].includes(entry.type)) return;
+      if (!entry || !['fault', 'maintenance', 'inspection', 'note'].includes(entry.type)) return;
       if (row.querySelector('[data-history-admin="delete"]')) return;
 
       const content = row.querySelector('div');
