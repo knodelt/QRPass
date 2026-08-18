@@ -1,4 +1,5 @@
 (() => {
+  const PASSWORD_ITERATIONS = 150000;
   let currentUser = null;
 
   async function request(path, options = {}) {
@@ -23,6 +24,48 @@
     return String(value).replace(/[&<>'"]/g, char => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
     }[char]));
+  }
+
+  function bytesToBase64Url(bytes) {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  function base64UrlToBytes(value) {
+    const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+    const binary = atob(padded);
+    return Uint8Array.from(binary, char => char.charCodeAt(0));
+  }
+
+  function createSalt() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return bytesToBase64Url(bytes);
+  }
+
+  async function derivePasswordVerifier(password, salt) {
+    const material = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(password),
+      'PBKDF2',
+      false,
+      ['deriveBits']
+    );
+
+    const bits = await crypto.subtle.deriveBits(
+      {
+        name: 'PBKDF2',
+        hash: 'SHA-256',
+        salt: base64UrlToBytes(salt),
+        iterations: PASSWORD_ITERATIONS
+      },
+      material,
+      256
+    );
+
+    return bytesToBase64Url(new Uint8Array(bits));
   }
 
   function authMarkup(mode = 'login') {
@@ -97,16 +140,37 @@
     const mode = form.dataset.mode;
     const submit = form.querySelector('[type="submit"]');
     const values = Object.fromEntries(new FormData(form).entries());
+    const email = String(values.email || '').trim().toLowerCase();
+    const password = String(values.password || '');
 
     submit.disabled = true;
     submit.textContent = mode === 'register' ? 'Konto wird erstellt …' : 'Anmeldung …';
     setError('');
 
     try {
-      await request(mode === 'register' ? '/api/auth/register' : '/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(values)
-      });
+      if (!window.crypto?.subtle) throw new Error('Sichere Passwortverarbeitung wird auf diesem Gerät nicht unterstützt.');
+
+      if (mode === 'register') {
+        const salt = createSalt();
+        const verifier = await derivePasswordVerifier(password, salt);
+        await request('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            companyName: values.companyName,
+            email,
+            passwordSalt: salt,
+            passwordVerifier: verifier
+          })
+        });
+      } else {
+        const saltResult = await request(`/api/auth/salt?email=${encodeURIComponent(email)}`);
+        const verifier = await derivePasswordVerifier(password, saltResult.salt);
+        await request('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, passwordVerifier: verifier })
+        });
+      }
+
       location.reload();
     } catch (error) {
       submit.disabled = false;
@@ -150,8 +214,7 @@
       document.querySelector('#auth-screen')?.remove();
       injectLogout();
     } catch (error) {
-      if (error.status === 401) showAuth('login');
-      else showAuth('login');
+      showAuth('login');
     }
   }
 
