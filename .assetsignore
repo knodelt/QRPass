@@ -12,6 +12,7 @@ worker-v08.js
 worker-v082.js
 worker-v09.js
 worker-v09-runtime.js
+worker-v10.js
 .assetsignore
 node_modules
 node_modules/**
