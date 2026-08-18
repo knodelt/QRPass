@@ -1,4 +1,4 @@
-const CACHE = 'qrpass-shell-v0.9.1';
+const CACHE = 'qrpass-shell-v1.0.0';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,10 @@ const ASSETS = [
   './archive.css',
   './history-admin.css',
   './account.css',
+  './pilot.css',
+  './legal.css',
+  './legal-config.js',
+  './pilot.js',
   './qr-flow.js',
   './auth.js',
   './recovery.js',
@@ -23,6 +27,7 @@ const ASSETS = [
   './archive-ui.js',
   './history-admin.js',
   './account.js',
+  './legal.js',
   './manifest.json'
 ];
 
