@@ -102,9 +102,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .history-item small{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.4}
 .history-item time{white-space:nowrap;color:var(--muted);font:700 10px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
-.modal-backdrop{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:18px;background:rgba(17,18,16,.72)}
-.modal{width:min(640px,100%);max-height:90vh;overflow:auto;background:var(--bg);border:1px solid #111;border-radius:2px}
-.modal-header{display:flex;justify-content:space-between;gap:14px;padding:16px 18px;border-bottom:3px solid #111;background:var(--signal)}
+/* Modal: der Backdrop scrollt. Das ist auf iOS Safari robuster als ein verschachtelter Scrollbereich im Dialog. */
+.modal-backdrop{position:fixed;inset:0;z-index:100;display:block;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:18px;background:rgba(17,18,16,.72)}
+.modal{width:min(640px,100%);margin:0 auto;background:var(--bg);border:1px solid #111;border-radius:2px;overflow:visible}
+.modal-header{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;gap:14px;padding:16px 18px;border-bottom:3px solid #111;background:var(--signal)}
 .modal-header .eyebrow{color:#584900}
 .modal-header h2{margin:2px 0 0;font-size:22px}
 .icon-button{width:34px;height:34px;border:1px solid #111;border-radius:2px;background:transparent;color:#111;font-size:22px;font-weight:900;line-height:1}
@@ -165,11 +166,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   .fault-card{margin:11px}
   .form-grid{grid-template-columns:1fr}
   .field.full{grid-column:auto}
-  .modal-backdrop{padding:8px;align-items:end}
-  .modal{width:100%;max-height:92vh}
-  .modal-header{padding:13px 14px}
+
+  .modal-backdrop{padding-top:max(8px,env(safe-area-inset-top));padding-right:8px;padding-bottom:max(18px,env(safe-area-inset-bottom));padding-left:8px}
+  .modal{width:100%;margin:0 auto;max-height:none;overflow:visible}
+  .modal-header{top:0;padding:13px 14px}
   .modal-header h2{font-size:19px}
-  .modal-body{padding:15px 14px 18px}
+  .modal-body{padding:15px 14px 24px}
+  .form-actions{padding-bottom:max(4px,env(safe-area-inset-bottom))}
+
   .toast-root{left:10px;right:10px;bottom:10px}
   .toast{text-align:left}
 }
@@ -178,5 +182,5 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
   body *{visibility:hidden}
   .qr-label,.qr-label *{visibility:visible}
   .qr-label{position:fixed;left:20px;top:20px}
-  .modal-backdrop{background:#fff}
+  .modal-backdrop{background:#fff;overflow:visible}
 }
