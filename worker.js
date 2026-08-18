@@ -616,7 +616,6 @@ async function handleApi(request, env, url) {
   }
   const resolveMatch = url.pathname.match(/^\/api\/machines\/([^/]+)\/entries\/([^/]+)\/resolve$/);
   if (resolveMatch && request.method === 'PATCH') {
-    const denied = requireAdmin(session); if (denied) return denied;
     return resolveEntry(env, tenantId, decodeURIComponent(resolveMatch[1]), decodeURIComponent(resolveMatch[2]));
   }
 
