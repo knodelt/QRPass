@@ -9,6 +9,7 @@ wrangler.jsonc
 worker.js
 worker-v07.js
 worker-v08.js
+worker-v082.js
 .assetsignore
 node_modules
 node_modules/**
