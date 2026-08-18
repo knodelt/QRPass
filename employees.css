@@ -1,0 +1,115 @@
+body[data-role="employee"] [data-action="add-machine"],
+body[data-role="employee"] [data-action="edit-machine"],
+body[data-role="employee"] [data-action="resolve-fault"],
+body[data-role="employee"] [data-company-action="settings"],
+body[data-role="employee"] .company-settings-button{
+  display:none!important;
+}
+
+.employee-admin-entry{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px;
+  border:1px solid #aaa89f;
+  background:#f8f7f2;
+}
+.employee-admin-entry div{display:grid;gap:3px}
+.employee-admin-entry strong{font-size:13px}
+.employee-admin-entry small{color:#6d6b63;font-size:11px;line-height:1.35}
+
+.employee-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:760;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  background:rgba(14,15,13,.82);
+  padding:max(16px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));
+}
+.employee-panel{
+  width:min(760px,100%);
+  margin:0 auto;
+  border:1px solid #111;
+  background:#efede6;
+  color:#181916;
+}
+.employee-panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 18px;
+  background:#181916;
+  color:#fff;
+  border-bottom:4px solid var(--company-accent,#f0c400);
+}
+.employee-panel-head h2{margin:0;font-size:22px}
+.employee-panel-head small{display:block;margin-bottom:3px;color:#aaa;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.employee-close{width:36px;height:36px;border:1px solid #777;background:transparent;color:#fff;font-size:24px;cursor:pointer}
+.employee-panel-body{display:grid;gap:16px;padding:18px}
+.employee-code-box{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 14px;
+  border:1px solid #77756d;
+  background:#f8f7f2;
+}
+.employee-code-box div{display:grid;gap:3px}
+.employee-code-box span{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#6c6a63}
+.employee-code-box strong{font:800 24px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.09em}
+.employee-form{
+  display:grid;
+  grid-template-columns:1fr 180px auto;
+  gap:10px;
+  align-items:end;
+  padding:14px;
+  border:1px solid #aaa89f;
+  background:#f8f7f2;
+}
+.employee-form .auth-field{margin:0}
+.employee-form button{min-height:44px}
+.employee-form-error{grid-column:1/-1;padding:9px 10px;border:1px solid #b52d27;background:#fff0ee;color:#7d1f1b;font-size:11px;font-weight:700}
+.employee-form-error[hidden]{display:none}
+.employee-list{display:grid;border:1px solid #aaa89f;border-bottom:0}
+.employee-row{
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  align-items:center;
+  gap:10px;
+  min-height:58px;
+  padding:10px 12px;
+  border-bottom:1px solid #aaa89f;
+  background:#f8f7f2;
+}
+.employee-row-main{display:grid;gap:3px;min-width:0}
+.employee-row-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.employee-row-main small{font-size:10px;color:#6d6b63}
+.employee-status{padding:6px 8px;border:1px solid #777;font-size:10px;font-weight:800}
+.employee-status.active{border-color:#42795e;background:#edf7f0;color:#2f664d}
+.employee-status.inactive{border-color:#8c6d69;background:#f6efee;color:#76504b}
+.employee-row-actions{display:flex;gap:6px}
+.employee-row-actions .button{padding:7px 9px!important;font-size:10px!important}
+.employee-empty{padding:22px;text-align:center;color:#6d6b63;background:#f8f7f2;border-bottom:1px solid #aaa89f;font-size:12px}
+.employee-note{margin:0;color:#6d6b63;font-size:10px;line-height:1.4}
+
+@media(max-width:760px){
+  body[data-role="employee"] .topbar{gap:8px}
+  body[data-role="employee"] .brand{max-width:66vw}
+  body[data-role="employee"] .employee-logout{padding:8px 9px!important;font-size:10px!important}
+  .employee-backdrop{padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom))}
+  .employee-panel-head{padding:14px}
+  .employee-panel-body{padding:12px;gap:12px}
+  .employee-code-box{align-items:flex-start;flex-direction:column}
+  .employee-code-box strong{font-size:22px}
+  .employee-form{grid-template-columns:1fr;padding:12px}
+  .employee-form-error{grid-column:1}
+  .employee-row{grid-template-columns:1fr auto;gap:8px}
+  .employee-status{grid-column:2;grid-row:1}
+  .employee-row-actions{grid-column:1/-1;justify-content:flex-end}
+  .employee-admin-entry{align-items:flex-start;flex-direction:column}
+  .employee-admin-entry .button{width:100%}
+}
