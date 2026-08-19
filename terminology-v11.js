@@ -21,9 +21,6 @@
         setText(archiveTitle, 'Archivierte Betriebsmittel');
       }
 
-      document.querySelectorAll('.archive-empty strong').forEach(el => {
-        if (el.textContent.trim() === 'Archiv ist leer') return;
-      });
       document.querySelectorAll('.archive-empty span').forEach(el => {
         const text = el.textContent.trim();
         if (text.includes('Archivierte Maschinen erscheinen hier')) {
@@ -41,11 +38,11 @@
       });
 
       document.querySelectorAll('.legal-head small').forEach(el => {
-        if (el.textContent.trim() === 'QRPass 1.0') setText(el, 'QRPass 1.1');
+        if (/^QRPass 1\.[01]$/.test(el.textContent.trim())) setText(el, 'QRPass 1.2');
       });
       document.querySelectorAll('.legal-note').forEach(el => {
-        if (el.textContent.includes('QRPass 1.0')) {
-          setText(el, el.textContent.replaceAll('QRPass 1.0', 'QRPass 1.1'));
+        if (/QRPass 1\.[01]/.test(el.textContent)) {
+          setText(el, el.textContent.replace(/QRPass 1\.[01]/g, 'QRPass 1.2'));
         }
       });
 
