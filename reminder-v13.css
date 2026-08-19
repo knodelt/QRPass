@@ -1,0 +1,18 @@
+.reminder-v13-section{display:grid;gap:12px}
+.reminder-v13-badge{display:inline-flex;align-items:center;justify-content:center;min-width:48px;padding:5px 8px;border:1px solid #aaa89f;background:#ece9e0;color:#66645e;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.reminder-v13-badge.is-on{border-color:#47775a;background:#eaf4ed;color:#285c42}
+.reminder-v13-warning{padding:10px 11px;border-left:4px solid #b56f00;background:#fff3d6;color:#674300;font-size:11px;line-height:1.45}
+.reminder-v13-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.reminder-v13-toggle{grid-column:1/-1;display:flex;align-items:flex-start;gap:10px;padding:11px;border:1px solid #aaa89f;background:#efede6;cursor:pointer}
+.reminder-v13-toggle input{margin-top:3px}
+.reminder-v13-toggle span{display:grid;gap:3px}.reminder-v13-toggle strong{font-size:12px}.reminder-v13-toggle small{font-size:10px;color:#6d6b63;line-height:1.35}
+.reminder-v13-email{grid-column:1/-1}
+.reminder-v13-types{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0}
+.reminder-v13-types>span{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#6d6b63}
+.reminder-v13-types label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800}
+.reminder-v13-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.reminder-v13-message{grid-column:1/-1;padding:9px 10px;border:1px solid #548266;background:#eef7f1;color:#285c42;font-size:11px;font-weight:700}
+.reminder-v13-message.error{border-color:#b52d27;background:#fff0ee;color:#7d1f1b}.reminder-v13-message[hidden]{display:none}
+.reminder-v13-meta{display:flex;gap:12px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #d2cfc5;color:#6d6b63;font-size:9px;line-height:1.4}.reminder-v13-meta strong{color:#34332f}
+.reminder-v13-note{margin:0;color:#6d6b63;font-size:10px;line-height:1.45}
+@media(max-width:760px){.reminder-v13-form{grid-template-columns:1fr}.reminder-v13-toggle,.reminder-v13-email,.reminder-v13-types,.reminder-v13-actions,.reminder-v13-message{grid-column:1}.reminder-v13-actions{display:grid}.reminder-v13-actions .button{width:100%}.reminder-v13-meta{display:grid;gap:5px}}
