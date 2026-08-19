@@ -8,9 +8,11 @@ QRPass verbindet jedes Betriebsmittel mit einem eigenen QR-Code. Mitarbeiter sca
 
 ## Aktueller Stand
 
-**Version 1.3 – Pilotversion**
+**Version 1.3.1 – Pilotversion / Code-Cleanup**
 
-QRPass ist als funktionierende Web-App/PWA mit Cloudflare Workers und D1 aufgebaut. Die Daten liegen zentral in der Datenbank und nicht nur auf einem einzelnen Endgerät.
+QRPass ist eine funktionierende Web-App/PWA auf Basis von Cloudflare Workers und D1. Die Daten liegen zentral in der Datenbank und nicht auf einem einzelnen Endgerät.
+
+Version 1.3.1 enthält keine neue Produktfunktion, sondern ordnet die Projektstruktur für einen klareren und professionelleren Entwicklungsstand.
 
 ## Funktionen
 
@@ -35,40 +37,18 @@ Je Betriebsmittel können unter anderem Anlagennummer, Bereich, Hersteller, Mode
 - direkter Aufruf des richtigen Datensatzes nach dem Scan
 - druckbares QR-Etikett
 - Firmenlogo auf dem Etikett möglich
-- kein spezieller QR-Scanner notwendig
+- keine spezielle Scanner-Hardware erforderlich
 
-### Störungen
+### Störungen, Wartungen und Prüfungen
 
-- Störung direkt am Betriebsmittel melden
-- offene Störungen anzeigen
-- Störung als erledigt markieren
-- nachvollziehbar, wer gemeldet bzw. erledigt hat
+- Störungen direkt am Betriebsmittel melden und erledigen
+- Wartungen mit Intervall und Verlauf dokumentieren
+- Prüfungen mit Prüfart, Datum, Prüfer, Ergebnis und nächstem Prüftermin erfassen
+- fällige und überfällige Termine in der Übersicht
+- nachvollziehbar, welcher angemeldete Benutzer einen Eintrag erstellt oder erledigt hat
 - Admin kann Verlaufseinträge nach Bestätigung löschen
 
-### Wartungen
-
-- Wartung dokumentieren
-- Wartungsintervall hinterlegen
-- letzte und nächste Wartung sichtbar
-- fällige Wartungen in der Übersicht
-- Eintrag mit Benutzerzuordnung im Verlauf
-
-### Prüfungen
-
-- Prüfungen je Betriebsmittel aktivierbar
-- Prüfart
-- Prüfdatum
-- Prüfer / befähigte Person
-- Ergebnis: ohne Mangel / Mangel / außer Betrieb
-- nächster Prüftermin
-- Prüfintervall
-- fällige und überfällige Prüfungen in der Übersicht
-
 QRPass gibt bewusst **keine gesetzlichen Prüffristen vor**. Die jeweilige Firma hinterlegt die für sie festgelegten Prüffristen selbst.
-
-### Verlauf & Nachvollziehbarkeit
-
-Störungen, Wartungen, Prüfungen und Notizen werden chronologisch am Betriebsmittel gespeichert. QRPass speichert zusätzlich, welcher angemeldete Benutzer einen Eintrag erstellt oder eine Störung erledigt hat.
 
 ### Rollen & Anmeldung
 
@@ -90,15 +70,9 @@ Störungen, Wartungen, Prüfungen und Notizen werden chronologisch am Betriebsmi
 - Wartungen und Prüfungen eintragen
 - Notizen hinzufügen
 
-### Archiv
-
-Betriebsmittel können archiviert werden, ohne den bisherigen Verlauf zu verlieren. Erst eine separate, bestätigte Admin-Aktion löscht ein archiviertes Betriebsmittel dauerhaft.
-
 ### CSV-Import & Export
 
-QRPass unterstützt den Massenimport von Betriebsmitteln per CSV.
-
-Der Import läuft zweistufig:
+Der Betriebsmittel-Import läuft zweistufig:
 
 1. CSV auswählen
 2. Vorschau und Fehlerprüfung
@@ -106,11 +80,11 @@ Der Import läuft zweistufig:
 
 Vorhandene Betriebsmittel werden nicht automatisch überschrieben. Doppelte Anlagennummern werden erkannt und übersprungen.
 
-Zusätzlich kann der Admin die Firmendaten als CSV exportieren, damit die Daten nicht ausschließlich in QRPass eingeschlossen sind.
+Der Admin kann die Firmendaten außerdem als CSV exportieren, damit die Daten nicht ausschließlich in QRPass eingeschlossen sind.
 
 ### E-Mail-Erinnerungen
 
-QRPass 1.3 kann automatisch an anstehende und fällige **Prüfungen und Wartungen** erinnern.
+QRPass kann automatisch an anstehende und fällige **Prüfungen und Wartungen** erinnern.
 
 - Empfänger frei wählbar
 - Vorwarnung 7 / 14 / 30 / 60 Tage
@@ -122,16 +96,6 @@ QRPass 1.3 kann automatisch an anstehende und fällige **Prüfungen und Wartunge
 
 Die automatische Prüfung läuft über einen Cloudflare Cron Trigger. Für den Versand wird optional **Resend** verwendet.
 
-## Firmenanpassung
-
-Ein Firmen-Admin kann QRPass an den eigenen Betrieb anpassen:
-
-- Firmenname
-- Firmenlogo
-- Akzentfarbe
-- Headerfarbe
-- Hintergrundfarbe
-
 ## Technik
 
 - HTML / CSS / JavaScript
@@ -140,27 +104,56 @@ Ein Firmen-Admin kann QRPass an den eigenen Betrieb anpassen:
 - Cloudflare D1
 - serverseitige Mandantentrennung
 - rollenbasierte Berechtigungsprüfung
-- sichere HttpOnly-Session-Cookies
+- HttpOnly-Session-Cookies
 - Passwort-/PIN-Verifier statt Klartext-Zugangsdaten in der QRPass-Datenbank
 - Resend optional für E-Mail-Versand
 
-Der aktive Worker-Einstieg ist `worker-v13.js`.
+## Projektstruktur
+
+```text
+QRPass/
+├── README.md
+├── CHANGELOG.md
+├── wrangler.jsonc
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── SETUP.md
+├── public/
+│   ├── index.html
+│   ├── manifest.json
+│   ├── sw.js
+│   └── assets/
+│       ├── css/
+│       └── js/
+└── src/
+    └── worker/
+        ├── index.js
+        └── pipeline/
+```
+
+`public/` enthält ausschließlich Dateien, die als statische Web-Assets ausgeliefert werden. Backend-Code liegt getrennt unter `src/worker/`.
+
+Der aktive Cloudflare-Worker-Einstieg ist:
+
+```text
+src/worker/index.js
+```
+
+Die bestehende Worker-Middleware-Kette liegt vorerst unter `src/worker/pipeline/`. Sie wurde beim Cleanup absichtlich nicht funktional neu geschrieben, damit die produktiv getesteten Abläufe unverändert bleiben. Eine spätere interne Konsolidierung kann unabhängig davon erfolgen.
+
+Mehr Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Deployment
-
-Das Projekt ist für Cloudflare Workers mit statischen Assets ausgelegt.
 
 ```bash
 npx wrangler deploy
 ```
 
-Benötigt wird eine D1-Bindung mit dem Namen:
+Benötigt wird eine Cloudflare-D1-Bindung mit dem Namen:
 
 ```text
 DB
 ```
-
-Die nötigen Tabellen bzw. zusätzlichen Spalten werden von den aktuellen Worker-Versionen beim ersten Zugriff additiv angelegt.
 
 ### Optional: E-Mail-Versand
 
@@ -175,6 +168,8 @@ APP_URL
 
 **Keine API-Keys oder andere Secrets in das Repository committen.**
 
+Eine kurze Einrichtungshilfe steht in [`docs/SETUP.md`](docs/SETUP.md).
+
 ## Produktidee
 
 QRPass soll bewusst **kein vollständiges ERP, CMMS oder Warenwirtschaftssystem ersetzen**.
@@ -187,9 +182,9 @@ Der Schwerpunkt liegt auf einem möglichst kurzen Ablauf vor Ort:
 
 ## Pilotstatus
 
-QRPass befindet sich aktuell in der Pilotphase. Der technische Kern funktioniert, der nächste wichtige Schritt ist der Einsatz mit realen Betrieben und das Sammeln von Rückmeldungen aus der Praxis.
+QRPass befindet sich aktuell in der Pilotphase. Der technische Kern funktioniert; der wichtigste nächste Schritt ist der Einsatz mit realen Betrieben und Rückmeldung aus der Praxis.
 
-Feedback zu Bedienung, fehlenden Kernfunktionen, Datenschutz/IT-Anforderungen und Integrationsbedarf ist ausdrücklich willkommen.
+Feedback zu Bedienung, fehlenden Kernfunktionen, Datenschutz/IT-Anforderungen und Integrationsbedarf ist willkommen.
 
 ## Kontakt
 

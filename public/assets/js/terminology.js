@@ -38,11 +38,11 @@
       });
 
       document.querySelectorAll('.legal-head small').forEach(el => {
-        if (/^QRPass 1\.[0-2]$/.test(el.textContent.trim())) setText(el, 'QRPass 1.3');
+        if (/^QRPass 1\.(?:0|1|2|3)$/.test(el.textContent.trim())) setText(el, 'QRPass 1.3.1');
       });
       document.querySelectorAll('.legal-note').forEach(el => {
-        if (/QRPass 1\.[0-2]/.test(el.textContent)) {
-          setText(el, el.textContent.replace(/QRPass 1\.[0-2]/g, 'QRPass 1.3'));
+        if (/QRPass 1\.(?:0|1|2|3)/.test(el.textContent)) {
+          setText(el, el.textContent.replace(/QRPass 1\.(?:0|1|2|3)/g, 'QRPass 1.3.1'));
         }
       });
 
@@ -58,15 +58,15 @@
         list.append(item);
       });
 
-      document.querySelectorAll('.legal-section').forEach(section => {
-        const heading = section.querySelector('h3');
-        if (!heading || !heading.textContent.startsWith('8. Passwort-Zurücksetzung per E-Mail')) return;
-        setText(heading, '8. E-Mail-Versand und Erinnerungen');
-        const paragraph = section.querySelector('p');
-        if (paragraph) {
-          setText(paragraph, 'QRPass kann für Passwort-Zurücksetzungen und vom Admin aktivierte Termin-Erinnerungen einen externen E-Mail-Versanddienst (Resend) verwenden. Dabei werden die jeweilige Empfänger-E-Mail-Adresse und die für die Nachricht erforderlichen Inhalte an den Versanddienst übertragen. E-Mail-Erinnerungen sind optional und können vom Admin jederzeit deaktiviert oder an eine andere Empfänger-Adresse gerichtet werden.');
-        }
-      });
+      const privacySections = [...document.querySelectorAll('.legal-section')];
+      const mailSection = privacySections.find(section => section.querySelector('h3')?.textContent.startsWith('8. Passwort-Zurücksetzung'));
+      if (mailSection && !document.querySelector('[data-v13-reminder-privacy]')) {
+        const section = document.createElement('section');
+        section.className = 'legal-section';
+        section.dataset.v13ReminderPrivacy = '1';
+        section.innerHTML = '<h3>8a. E-Mail-Erinnerungen</h3><p>Wenn ein Firmen-Admin E-Mail-Erinnerungen aktiviert, verarbeitet QRPass die hinterlegte Empfängeradresse sowie fällige Prüfungs- und Wartungstermine, um die gewünschte Erinnerungs-E-Mail zu erstellen. Für den Versand wird Resend als E-Mail-Dienst eingesetzt. Die Funktion kann vom Admin jederzeit deaktiviert werden.</p>';
+        mailSection.after(section);
+      }
     } finally {
       observer?.observe(document.body, { childList: true, subtree: true });
     }

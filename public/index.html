@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171816">
+  <meta name="description" content="QRPass – digitales Betriebsmittelbuch per QR-Code.">
+  <title>QRPass – Betriebsmittelbuch</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <link rel="stylesheet" href="./assets/css/company.css">
+  <link rel="stylesheet" href="./assets/css/header-fix.css">
+  <link rel="stylesheet" href="./assets/css/auth.css">
+  <link rel="stylesheet" href="./assets/css/employees.css">
+  <link rel="stylesheet" href="./assets/css/audit.css">
+  <link rel="stylesheet" href="./assets/css/archive.css">
+  <link rel="stylesheet" href="./assets/css/history-admin.css">
+  <link rel="stylesheet" href="./assets/css/account.css">
+  <link rel="stylesheet" href="./assets/css/pilot.css">
+  <link rel="stylesheet" href="./assets/css/legal.css">
+  <link rel="stylesheet" href="./assets/css/inspections.css">
+  <link rel="stylesheet" href="./assets/css/import.css">
+  <link rel="stylesheet" href="./assets/css/reminders.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="./assets/js/legal-config.js"></script>
+  <script defer src="./assets/js/pilot.js"></script>
+  <script defer src="./assets/js/qr-flow.js"></script>
+  <script defer src="./assets/js/auth.js"></script>
+  <script defer src="./assets/js/recovery.js"></script>
+  <script defer src="./assets/js/employees.js"></script>
+  <script defer src="./assets/js/logo-processor.js"></script>
+  <script defer src="./assets/js/company.js"></script>
+  <script defer src="./assets/js/contrast.js"></script>
+  <script defer src="./assets/js/app.js"></script>
+  <script defer src="./assets/js/audit-ui.js"></script>
+  <script defer src="./assets/js/archive-ui.js"></script>
+  <script defer src="./assets/js/inspections.js"></script>
+  <script defer src="./assets/js/history-admin.js"></script>
+  <script defer src="./assets/js/account.js"></script>
+  <script defer src="./assets/js/import.js"></script>
+  <script defer src="./assets/js/reminders.js"></script>
+  <script defer src="./assets/js/legal.js"></script>
+  <script defer src="./assets/js/terminology.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" data-action="home" aria-label="Zur Übersicht">
+      <span class="brand-mark">QR</span>
+      <span><strong>QRPass</strong><small>Betriebsmittelbuch</small></span>
+    </button>
+    <div class="top-actions">
+      <button class="button button-primary" data-action="add-machine">+ Betriebsmittel</button>
+    </div>
+  </header>
+
+  <main id="app" class="app-shell" aria-live="polite"></main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root" aria-live="assertive"></div>
+
+  <template id="modal-template">
+    <div class="modal-backdrop">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" data-stop-close>
+        <header class="modal-header">
+          <div>
+            <p class="eyebrow" id="modal-eyebrow"></p>
+            <h2 id="modal-title"></h2>
+          </div>
+          <button class="icon-button" data-action="close-modal" aria-label="Schließen">×</button>
+        </header>
+        <div id="modal-body" class="modal-body"></div>
+      </section>
+    </div>
+  </template>
+
+  <noscript>QRPass benötigt JavaScript.</noscript>
+</body>
+</html>
