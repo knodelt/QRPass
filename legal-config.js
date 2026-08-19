@@ -8,5 +8,5 @@ window.QRPassLegalConfig = {
   email: 'Qrpass@outlook.de',
   phone: '',
   vatId: 'DE345004989',
-  updatedAt: '18.08.2026'
+  updatedAt: '19.08.2026'
 };
